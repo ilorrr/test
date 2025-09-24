@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title> NeuroFit </title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" href="app.css">
+    </head>
+
+    <body>
+        <nav class="topbar">
+            <button id="menuToggle" class="icon-btn" aria-label="Open Menu" aria-expanded="false"> ☰ </button>
+            <div class="brand"> My Web App </div>
+            <div class="spacer"></div>
+            <button id="logoutBtn" class="btn btn-outline hidden"> Logout </button>
+        </nav>
+
+        <div id="shell" class="shell">
+            <aside id="sidebar" class="sidebar">
+                <div class="sidebar-section">
+                    <div class="sidebar-title"> Main </div>
+                    <a class="sidebar-link" href="#/home"> Dashboard </a>
+                    <a class="sidebar-link" href="#/home?tab=stats"> Stats </a>
+                    <a class="sidebar-link" href="#/home?tab=settings"> Settings </a>
+                </div>
+                <div class="sidebar-section">
+                    <div class="sidebar-title"> Resources </div>
+                    <a class="sidebar-link" href="#"> Docs </a>
+                    <a class="sidebar-link" href="#"> Support </a>
+                </div>
+            </aside>
+
+            <main id="app" class="content"></main>
+        </div>
+
+        <footer class="footer">
+            <small> Demo SPA - Vanilla JS - localStorage </small>
+        </footer>
+
+        <script src="app.js"></script>
+    </body>
+</html>
