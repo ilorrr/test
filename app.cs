@@ -42,10 +42,11 @@ body{
 
 .icon-btn{
     border: 1px solid var(--border);
-    background: var(--bg);
+    background: var(--card);
     border-radius: 10px;
     padding: 8px 10px;
     cursor: pointer;
+    color: var(--text);
 }
 
 .shell{
@@ -63,6 +64,31 @@ body{
     height: calc(100vh - 60px);
     overflow: auto;
 }
+
+
+.body-diagram svg rect {
+  cursor: pointer;
+  transition: fill 0.2s ease;
+}
+
+.body-diagram svg rect:hover {
+  fill: #4CAF50; /* green highlight */
+}
+
+.muscle-info {
+  padding: 12px;
+}
+
+
+
+
+
+
+
+
+
+
+
 
 .content{
     padding: 20px;
@@ -89,12 +115,21 @@ body{
 
 .sidebar-link:hover {background: #f3f4f6;}
 
+.sidebar-link.active{
+    background: rgba(124, 58, 237, 0.15);
+    border: 1px solid rgba(124, 58, 237, 0.35);
+}
+
 .card{
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: 14px;
     box-shadow: 0 10px 24px rgba(0, 0, 0, 04);
     padding: 18px;
+}
+
+.card h2, .card h1{
+  text-align: center;
 }
 
 .grid{
@@ -147,13 +182,13 @@ p{
 }
 
 .btn-outline{
-    background: #fff;
-    color: var(--primary);
-    border: 1px solid var(--primary);
+    background: var(--card);
+    color: var(--text);
+    border: 1px solid var(--muted);
 }
 
 .btn-outline:hover{
-    background: var(--primary);
+    background: var(--bg);
     color: #fff;
 }
 
@@ -165,7 +200,7 @@ p{
 }
 
 .link{
-    color: var(--primary);
+    color: var(--text);
     text-decoration: none;
 }
 
@@ -248,7 +283,7 @@ p{
     .grid.cols-3, .grid.cols-2, .grid.cols-4{grid-template-columns: 1fr;}
 }
 
-body.auth{background: #f4f4f9;}
+body.auth{background: var(--bg);}
 
 body.auth #shell{display: block !important;}
 
@@ -262,7 +297,7 @@ body.auth #app{
 
 body.auth .card{
     border-radius: 10px;
-    box-shadow: 0 0 10px #ccc;
+    box-shadow: 0 0 10px #27466e;
     padding: 24px;
 }
 
@@ -276,11 +311,26 @@ body.auth .input{
 body.auth .btn-primary{
     width: 100%;
     padding: 10px 12px;
-    background: #4f46e5;
+    background: #2559a7;
     color: #fff;
     border-radius: 5px;
 }
 
-body.auth .btn-primary:hover{background: #4338ca;}
+body.auth .btn-primary:hover{background: #14305a;}
 
 body.auth .alert{margin-top: 10px;}
+
+.table{
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.table th, .table td{
+    border-bottom: 1px solid var(--border);
+    padding: 10px;
+    text-align: left;
+}
+
+.table tr:hover td{
+    background: rgba(255, 255, 255, .03);
+}
