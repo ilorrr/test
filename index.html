@@ -10,7 +10,7 @@
     <body>
         <nav class="topbar">
             <button id="menuToggle" class="icon-btn" aria-label="Open Menu" aria-expanded="false"> ☰ </button>
-            <div class="brand"> My Web App </div>
+            <div class="brand"> NeuroFit </div>
             <div class="spacer"></div>
             <button id="logoutBtn" class="btn btn-outline hidden"> Logout </button>
         </nav>
@@ -20,8 +20,15 @@
                 <div class="sidebar-section">
                     <div class="sidebar-title"> Main </div>
                     <a class="sidebar-link" href="#/home"> Dashboard </a>
-                    <a class="sidebar-link" href="#/home?tab=stats"> Stats </a>
-                    <a class="sidebar-link" href="#/home?tab=settings"> Settings </a>
+                    <a class="sidebar-link" href="#/progress"> Progress </a>
+                    <a class="sidebar-link" href="#/settings"> Settings </a>
+                </div>
+                <div class="sidebar-section">
+                    <div class="sidebar-title"> Workouts </div>
+                    <a class="sidebar-link" href="#/workouts/log"> Log Workout </a>
+                    <a class="sidebar-link" href="#/workouts/diagram"> Body Diagram </a>
+                    <a class="sidebar-link" href="#/workouts/history"> History </a>
+                    <a class="sidebar-link" href="#/library"> Exercise Library </a>
                 </div>
                 <div class="sidebar-section">
                     <div class="sidebar-title"> Resources </div>
@@ -32,6 +39,332 @@
 
             <main id="app" class="content"></main>
         </div>
+
+        <!-- Login -->
+        <template id="login-template">
+          <section class="card" aria-labelledby="login-title">
+            <h2 id="login-title"> Welcome Back </h2>
+            <p> Please Sign In to Continue </p>
+
+            <form id="loginForm" class="form" novalidate>
+              <div>
+                <input class="input" type="email" id="loginEmail" placeholder="Email" required/>
+                <div id="loginEmailErr" class="alert error"></div>
+              </div>
+              
+              <div>
+                <input class="input" type="password" id="loginPassword" placeholder="Password" required/>
+                <div id="loginPasswordErr" class="alert error"></div>
+              </div>
+
+              <button class="btn btn-primary" type="submit"> Login </button>
+            </form>
+
+            <div class="row" style="margin-top: 8px;">
+              <span> New Here? </span>
+              <a class="link" href="#/register"> Create an Account </a>
+            </div>
+
+            <div id="loginMsg" class="alert"></div>
+          </section>
+        </template>
+
+        <!-- Register -->
+        <template id="register-template">
+          <section class="card" aria-labelledby="reg-title">
+            <h2 id="reg-title"> Create an Account </h2>
+            <p> It Takes Less Than a Minute </p>
+
+            <form id="regForm" class="form" novalidate>
+              <div>
+                <input class="input" id="regUsername" type="text" placeholder="Username" required/>
+                <div id="regUsernameErr" class="alert error"></div>
+              </div>
+              
+              <div>
+                <input class="input" id="regEmail" type="email" placeholder="Email" required/>
+                <div id="regEmailErr" class="alert error"></div>
+              </div>
+
+              <div>
+                <input class="input" id="regPassword" type="password" placeholder="Password (8+ Characters)" required aria-describedby="pwHelp"/>
+                <div class="meter" id="pwMeter">
+                  <div class="meter-fill"></div>
+                </div>
+                <div id="pwHelp" class="helper"> Use Upper & Lower Case, a Number, and a Symbol </div>
+                <div id="regPasswordErr" class="alert error"></div>
+              </div>
+
+              <button class="btn btn-primary" type="submit"> Register </button>
+            </form>
+
+            <div class="row" style="margin-top: 8px;">
+              <span> Already Have an Account? </span>
+              <a class="link" href="#/login"> Sign In </a>
+            </div>
+
+            <div id="regMsg" class="alert"></div>
+          </section>
+        </template>
+
+        <!-- Home Page -->
+        <template id="home-template">
+          <div class="grid cols-3" style="margin-bottom: 16px;">
+            <div class="card">
+              <h3> Welcome <span data-username></span> 👋 </h3>
+              <p> Here's a Quick Snapchot of Your App </p>
+            </div>
+
+            <div class="card">
+              <h3> Status </h3>
+              <p><strong> Online </strong> • Session active </p>
+            </div>
+
+            <div class="card">
+              <h3> Tips </h3>
+              <p> Use the Sidebar to Navigate Between Sections </p>
+            </div>
+          </div>
+
+          <div class="grid cols-2">
+            <div class="card">
+              <h3> This Week </h3>
+              <p class="helper"> Auto-Calculated from Your Logs </p>
+              
+              <div class="grid cols-2">
+                <div class="card">
+                  <h3 style="margin-bottom: 4px;"> Workouts </h3>
+                  <p id="statWorkouts" style="font-size: 1.6rem;"> 0 </p>
+                </div>
+                <div class="card">
+                  <h3 style="margin-bottom: 4px;"> Total Volume </h3>
+                  <p id="statVolume" style="font-size: 1.6rem;"> 0 </p>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <h3> Activity </h3>
+              <p class="helper"> Recent Actions Appear Here </p>
+              <ul id="activityList"></ul>
+            </div>
+          </div>
+        </template>
+
+        <!-- Log Workouts Page -->
+        <template id="workout-log-template">
+          <section class="card">
+            <h2> Log a Workout </h2>
+            
+            <form id="workoutForm" class="form" novalidate>
+              <div class="grid cols-2">
+                <input id="woDate" class="input" type="date" required />
+                <input id="woExercise" class="input" placeholder="Exercise" list="exerciseList" required />
+                <datalist id="exerciseList">
+                  <option> Barbell Squat </option>
+                  <option> Bench Press </option>
+                  <option> Deadlift </option>
+                  <option> Overhead Press </option>
+                  <option> Lat Pulldown </option>
+                  <option> Dumbbell Row </option>
+                  <option> Incline Bench </option>
+                </datalist>
+              </div>
+
+              <div class="grid cols-3">
+                <input id="woSets" class="input" type="number" min="1" step="1" placeholder="Sets" required />
+                <input id="woReps" class="input" type="number" min="1" step="1" placeholder="Reps" required />
+                <input id="woWeight" class="input" type="number" min="0" step="0.5" placeholder="Weight" required />
+              </div>
+
+              <div class="row">
+                <button type="reset" class="btn btn-outline"> Reset </button>
+                <button type="submit" class="btn btn-primary"> Save Entry </button>
+              </div>
+
+              <div id="woErr" class="alert error"></div>
+              <div id="woOK" class="alert success"></div>
+            </form>
+          </section>
+        </template>
+
+
+
+
+
+
+
+
+
+
+
+        
+<!-- Body Diagram -->
+<template id="body-diagram-template">
+  <section class="card">
+    <h2> Body Diagram </h2>
+    <p class="helper"> Click on a muscle group to see suggested exercises </p>
+
+    <button id="toggleViewBtn" class="btn btn-outline" style="margin-bottom:12px;">
+      Show Back View
+    </button>
+
+    <div class="body-diagram">
+      <!-- FRONT VIEW -->
+      <svg id="frontView" viewBox="0 0 200 400" width="200" height="400">
+        <!-- Chest -->
+        <rect id="chest" x="70" y="60" width="60" height="40" fill="#e57373" stroke="#333" />
+        <!-- Biceps -->
+        <rect id="biceps" x="40" y="60" width="20" height="60" fill="#ffeb3b" stroke="#333" />
+        <rect id="biceps2" x="140" y="60" width="20" height="60" fill="#ffeb3b" stroke="#333" />
+        <!-- Abs -->
+        <rect id="abs" x="90" y="110" width="40" height="60" fill="#81c784" stroke="#333" />
+        <!-- Quads -->
+        <rect id="quadsL" x="70" y="180" width="30" height="100" fill="#64b5f6" stroke="#333" />
+        <rect id="quadsR" x="100" y="180" width="30" height="100" fill="#64b5f6" stroke="#333" />
+      </svg>
+
+      <!-- BACK VIEW (hidden by default) -->
+      <svg id="backView" viewBox="0 0 200 400" width="200" height="400" style="display:none;">
+        <!-- Trapezius -->
+        <rect id="traps" x="70" y="40" width="60" height="40" fill="#f06292" stroke="#333" />
+        <!-- Delts -->
+        <rect id="deltsL" x="40" y="60" width="30" height="40" fill="#ff9800" stroke="#333" />
+        <rect id="deltsR" x="130" y="60" width="30" height="40" fill="#ff9800" stroke="#333" />
+        <!-- Lats -->
+        <rect id="lats" x="70" y="80" width="60" height="60" fill="#4db6ac" stroke="#333" />
+        <!-- Glutes -->
+        <rect id="glutes" x="80" y="150" width="40" height="40" fill="#9575cd" stroke="#333" />
+        <!-- Hamstrings -->
+        <rect id="hamsL" x="70" y="190" width="30" height="100" fill="#7986cb" stroke="#333" />
+        <rect id="hamsR" x="100" y="190" width="30" height="100" fill="#7986cb" stroke="#333" />
+      </svg>
+    </div>
+
+    <div id="muscleInfo" class="muscle-info card" style="margin-top:16px; display:none;">
+      <h3 id="muscleName"></h3>
+      <ul id="muscleExercises"></ul>
+    </div>
+  </section>
+</template>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+
+        <!-- History Page -->
+        <template id="history-template">
+          <section class="card">
+            <h2> Workout History </h2>
+            
+            <div class="grid cols-3" style="margin-bottom: 12px;">
+              <input id="filterDate" class="input" type="date" />
+              <input id="filterText" class="input" placeholder="Search Exercise" />
+              <select id="filterSort" class="select">
+                <option value="newest"> Newest First </option>
+                <option value="oldest"> Oldest First </option>
+                <option value="volume"> Highest Volume </option>
+              </select>
+            </div>
+
+            <div class="table-wrap">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th> Date </th>
+                    <th> Exercise </th>
+                    <th> Sets </th>
+                    <th> Reps </th>
+                    <th> Weight </th>
+                    <th> Volume </th>
+                    <th> Notes </th>
+                    <th></th>
+                  </tr>
+                </thead>
+
+                <tbody id="historyBody"></tbody>
+              </table>
+            </div>
+          </section>
+        </template>
+
+        <!-- Progress Page -->
+        <template id="progress-template">
+          <section class="card">
+            <h2> Progress </h2>
+            <p class="helper"> Computed Stats per Exercise </p>
+            <u1 id="progressList"></u1>
+          </section>
+        </template>
+
+        <!-- Exercise Library -->
+        <template id="library-template">
+          <section class="card">
+            <h2> Exercise Library </h2>
+            <p class="helper"> Starter List -- Expand with Categories, Cues, and Videos </p>
+
+            <u1 id="exerciseLib">
+              <li><strong> Chest </strong> -- Bench Press: 3-5 sets x 5-10 reps </li>
+              <li><strong> Legs </strong> -- Barbell Squats: 3-5 sets x 5-10 reps </li>
+              <li><strong> Back </strong> -- Deadlift: 3-5 sets x 5-10 reps </li>
+              <li><strong> Shoulder </strong> -- Overhead Press: 3-5 sets x 5-10 reps </li>
+              <li><strong> Back </strong> -- Lat Pulldown: 3-5 sets x 5-10 reps </li>
+              <li><strong> Back </strong> -- Dumbbell Row: 3-5 sets x 5-10 reps </li>
+            </u1>
+          </section>
+        </template>
+
+        <!-- Settings -->
+        <template id="settings-template">
+          <section class="card">
+            <h2> Settings </h2>
+
+            <div class="grid cols-2">
+              <div>
+                <label class="helper"> Units </label>
+                <select id="unitsSelect" class="select">
+                  <option value="lbs"> Pounds (LB) </option>
+                  <option value="kg"> Kilograms (KG) </option>
+                </select>
+              </div>
+
+              <div>
+                <label class="helper"> Weekly Goal (Sessions) </label>
+                <input id="weeklyGoal" class="input" type="number" min="1" step="1" placeholder="e.g., 4" />
+              </div>
+            </div>
+
+            <div class="row" style="margin-top: 12px;">
+              <button id="clearData" class="btn btn-outline"> Clear All Data </button>
+              <button id="saveSettings" class="btn btn-primary"> Save Settings </button>
+            </div>
+
+            <div id="settingsMsg" class="alert"></div>
+          </section>
+        </template>
 
         <footer class="footer">
             <small> Demo SPA - Vanilla JS - localStorage </small>
