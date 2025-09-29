@@ -337,7 +337,7 @@ body.auth .alert{margin-top: 10px;}
 
 
 /* --- Congrats --- */
-.toasts{
+.congrats{
   position: fixed;
   right: 16px;
   bottom: 16px;
@@ -345,7 +345,7 @@ body.auth .alert{margin-top: 10px;}
   gap: 12px;
   z-index: 60;
 }
-.toast{
+.congrat{
   display: flex;
   gap: 10px;
   align-items: start;
@@ -359,14 +359,14 @@ body.auth .alert{margin-top: 10px;}
   opacity: 0;
   transition: transform .18s ease, opacity .18s ease;
 }
-.toast.show{ transform: translateY(0); opacity: 1; }
-.toast-success{ border-color: rgba(34,197,94,.4); }
-.toast-info{ border-color: rgba(124,58,237,.4); }
-.toast-error{ border-color: rgba(239,68,68,.4); }
-.toast-icon{ font-size: 1.1rem; line-height: 1; padding-top: 2px; }
-.toast-body strong{ display:block; }
-.toast-msg{ color: var(--muted); margin-top: 2px; }
-.toast-close{
+.congrat.show{ transform: translateY(0); opacity: 1; }
+.congrat-success{ border-color: rgba(34,197,94,.4); }
+.congrat-info{ border-color: rgba(124,58,237,.4); }
+.congrat-error{ border-color: rgba(239,68,68,.4); }
+.congrat-icon{ font-size: 1.1rem; line-height: 1; padding-top: 2px; }
+.congratbody strong{ display:block; }
+.congrat-msg{ color: var(--muted); margin-top: 2px; }
+.congrat-close{
   background: transparent; border: 0; color: var(--muted);
   cursor: pointer; font-size: 1rem; margin-left: 8px;
 }
