@@ -548,7 +548,7 @@ function renderProgress() {
 
   logs.forEach((l) => {
     if(!byExercise[l.exercise]) {
-      byExercise[l.exercise] = {max: 0, sessions: 0, totalVol: 0};
+      byExercise[l.exercise] = {max: 0, sessions: 0, totalVal: 0};
     }
     byExercise[l.exercise].max = Math.max(byExercise[l.exercise].max, l.weight);
     byExercise[l.exercise].sessions += 1;
@@ -560,7 +560,7 @@ function renderProgress() {
     list.innerHTML = `<li class="helper"> Log some workouts to see progress. </li>`;
   } else {
     list.innerHTML = entries.map(([name, v]) => `<li><strong> ${escapeHtml(name)} </strong> — max ${formatUnits(v.max)}, 
-      sessions ${v.sessions}, volume ${v.totalVol.toLocaleString()} </li>`).join("");
+      sessions ${v.sessions}, volume ${v.totalVal.toLocaleString()} </li>`).join("");
   }
 }
 
