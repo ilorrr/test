@@ -36,16 +36,7 @@ const store = {
   clearData(){
     localStorage.removeItem(LOGS_KEY);
     localStorage.removeItem(SETTINGS_KEY);
-  },
-  // after successful login:
-  store.setCurrentUser({ id: user.id, username: user.username, email: user.email }); // your code
-  location.hash = '#/home';                       // your code (navigate)
-  document.body.classList.remove('auth');         // show the app layout
-
-// 🎉 positive feedback
-  Notify.success(`Welcome back, ${user.username}! 🎉`, `Let’s make progress today.`);
-  const streak = computeStreak?.() || 0;          // optional, from the snippet I gave
-  if (streak > 0) Notify.info(`Streak: ${streak} day${streak>1?'s':''} 🔥`);
+  }
 
   
 };
