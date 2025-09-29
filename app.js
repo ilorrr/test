@@ -610,3 +610,57 @@ window.addEventListener("load", () => {
   if (!location.hash) location.hash = "#/home";
   render();
 });
+
+// Congrats utility 
+const Notify = (() => {
+  const containerId = 'toasts';
+  const PRAISE = [
+    'Nice work!', 'Lets Go ! ', 'Consistency is elite. ',
+    'You showed up today. ', 'Small steps add up. '
+  ];
+  const icon = (t) => t === 'success' ? '✅' : t === 'error' ? '⚠️' : 'ℹ️';
+
+  function ensureContainer() {
+    let c = document.getElementById(containerId);
+    if (!c) {
+      c = document.createElement('div');
+      c.id = containerId;
+      c.className = 'toasts';
+      c.setAttribute('aria-live','polite');
+      c.setAttribute('aria-atomic','true');
+      document.body.appendChild(c);
+    }
+    return c;
+  }
+
+  function show({ title, message = '', type = 'info', duration = 3500 }) {
+    const c = ensureContainer();
+    const el = document.createElement('div');
+    el.className = `toast toast-${type}`;
+    el.innerHTML = `
+      <div class="toast-icon">${icon(type)}</div>
+      <div class="toast-body">
+        <strong>${title}</strong>
+        ${message ? `<div class="toast-msg">${message}</div>` : ''}
+      </div>
+      <button class="toast-close" aria-label="Close">&times;</button>
+    `;
+    c.appendChild(el);
+    requestAnimationFrame(() => el.classList.add('show'));
+
+    const remove = () => {
+      el.classList.remove('show');
+      el.addEventListener('transitionend', () => el.remove(), { once:true });
+    };
+    const t = setTimeout(remove, duration);
+    el.querySelector('.toast-close').addEventListener('click', () => { clearTimeout(t); remove(); });
+  }
+
+  // quick helpers
+  const success = (t, m, d) => show({ title: t, message: m, type: 'success', duration: d });
+  const info = (t, m, d) => show({ title: t, message: m, type: 'info', duration: d });
+  const praise = () => PRAISE[Math.floor(Math.random() * PRAISE.length)];
+
+  return { show, success, info, praise };
+})();
+
