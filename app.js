@@ -224,12 +224,15 @@ function renderLogin(){
       msg.className = "alert success"; 
       msg.textContent = "Login successful. Redirecting…";
 
-       // --- POPUP: welcome + streak
+   
+      document.body.classList.remove("auth");
+      setTimeout(() => (location.hash = "#/home"), 200);
+
+      //POPUP: welcome + streak
       Notify.success(`Welcome back, ${user.username}! `, `Let’s make progress today.`);
       const s = computeStreak();
       if (s > 0) Notify.info(`Streak: ${s} day${s>1?'s':''} `);
       
-      setTimeout(() => (location.hash = "#/home"), 200);
     } else {
       msg.className = "alert error"; 
       msg.textContent = "Invalid email or password.";
