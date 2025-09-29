@@ -580,7 +580,7 @@ function renderProgress() {
   if(!entries.length) {
     list.innerHTML = `<li class="helper"> Log some workouts to see progress. </li>`;
   } else {
-    list.innerHTML = entries.map(([name, v]) => `<li><strong> ${escapeHtml(name)} </strong> — max ${formatUnits(v.max)}, 
+    list.innerHTML = entries.map(([name, v]) => `<li><strong> ${escapeHTML(name)} </strong> — max ${formatUnits(v.max)}, 
       sessions ${v.sessions}, volume ${v.totalVal.toLocaleString()} </li>`).join("");
   }
 }
