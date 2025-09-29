@@ -37,7 +37,42 @@ const store = {
     localStorage.removeItem(LOGS_KEY);
     localStorage.removeItem(SETTINGS_KEY);
   }
+  
 };
+
+function mountLoginView(){
+  const app = document.getElementById('app');
+  app.innerHTML = document.getElementById('login-template').innerHTML;
+  document.body.classList.add('auth');
+
+  const form = app.querySelector('#loginForm');
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const email = app.querySelector('#loginEmail').value.trim().toLowerCase();
+    const pass  = app.querySelector('#loginPassword').value;
+
+    const users = store.getUsers(); // your storage helper
+    const user = Object.values(users).find(u =>
+      u.email.toLowerCase() === email && u.password === pass
+    );
+
+    if (!user) {
+      app.querySelector('#loginPasswordErr').textContent = 'Invalid email or password';
+      return;
+    }
+
+    store.setCurrentUser({ id: user.id, username: user.username, email: user.email });
+    document.body.classList.remove('auth');
+    location.hash = '#/home';
+
+    // ✅ welcome toast
+    Notify.success(`Welcome back, ${user.username}! 🎉`, `Let’s make progress today.`);
+    const streak = computeStreak?.() || 0;
+    if (streak > 0) Notify.info(`Streak: ${streak} day${streak>1?'s':''} 🔥`);
+  });
+}
+
+
 
 //Helpers
 function mount(templateId, data = {}){
