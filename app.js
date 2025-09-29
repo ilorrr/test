@@ -87,7 +87,7 @@ function mountLoginView(){
     document.body.classList.remove('auth');
     location.hash = '#/home';
 
-    // ✅ welcome toast
+    // ✅ welcome congrats
     Notify.success(`Welcome back, ${user.username}! 🎉`, `Let’s make progress today.`);
     const streak = computeStreak?.() || 0;
     if (streak > 0) Notify.info(`Streak: ${streak} day${streak>1?'s':''} 🔥`);
@@ -673,7 +673,7 @@ window.addEventListener("load", () => {
 
 // Congrats utility 
 const Notify = (() => {
-  const containerId = 'toasts';
+  const containerId = 'congrats';
   const PRAISE = [
     'Nice work!', 'Lets Go ! ', 'Consistency is elite. ',
     'You showed up today. ', 'Small steps add up. '
@@ -685,7 +685,7 @@ const Notify = (() => {
     if (!c) {
       c = document.createElement('div');
       c.id = containerId;
-      c.className = 'toasts';
+      c.className = 'congrats';
       c.setAttribute('aria-live','polite');
       c.setAttribute('aria-atomic','true');
       document.body.appendChild(c);
@@ -696,14 +696,14 @@ const Notify = (() => {
   function show({ title, message = '', type = 'info', duration = 3500 }) {
     const c = ensureContainer();
     const el = document.createElement('div');
-    el.className = `toast toast-${type}`;
+    el.className = `congrat congrat-${type}`;
     el.innerHTML = `
-      <div class="toast-icon">${icon(type)}</div>
-      <div class="toast-body">
+      <div class="congrat-icon">${icon(type)}</div>
+      <div class="congrat-body">
         <strong>${title}</strong>
-        ${message ? `<div class="toast-msg">${message}</div>` : ''}
+        ${message ? `<div class="congrat-msg">${message}</div>` : ''}
       </div>
-      <button class="toast-close" aria-label="Close">&times;</button>
+      <button class="congrat-close" aria-label="Close">&times;</button>
     `;
     c.appendChild(el);
     requestAnimationFrame(() => el.classList.add('show'));
@@ -713,7 +713,7 @@ const Notify = (() => {
       el.addEventListener('transitionend', () => el.remove(), { once:true });
     };
     const t = setTimeout(remove, duration);
-    el.querySelector('.toast-close').addEventListener('click', () => { clearTimeout(t); remove(); });
+    el.querySelector('.congrat-close').addEventListener('click', () => { clearTimeout(t); remove(); });
   }
 
   // quick helpers
