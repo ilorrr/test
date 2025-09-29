@@ -334,3 +334,40 @@ body.auth .alert{margin-top: 10px;}
 .table tr:hover td{
     background: rgba(255, 255, 255, .03);
 }
+
+
+/* --- Congrats --- */
+.congrats{
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: grid;
+  gap: 12px;
+  z-index: 60;
+}
+.congrats{
+  display: flex;
+  gap: 10px;
+  align-items: start;
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  box-shadow: 0 14px 28px rgba(0,0,0,.35);
+  transform: translateY(8px);
+  opacity: 0;
+  transition: transform .18s ease, opacity .18s ease;
+}
+.congrats.show{ transform: translateY(0); opacity: 1; }
+.congrats-success{ border-color: rgba(34,197,94,.4); }
+.congrats-info{ border-color: rgba(124,58,237,.4); }
+.congrats-error{ border-color: rgba(239,68,68,.4); }
+.congrats-icon{ font-size: 1.1rem; line-height: 1; padding-top: 2px; }
+.congrats-body strong{ display:block; }
+.congrats-msg{ color: var(--muted); margin-top: 2px; }
+.congrats-close{
+  background: transparent; border: 0; color: var(--muted);
+  cursor: pointer; font-size: 1rem; margin-left: 8px;
+}
+@media (prefers-reduced-motion: reduce){ .toast{ transition:none; } }
