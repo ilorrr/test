@@ -223,6 +223,12 @@ function renderLogin(){
       store.setCurrentUser({username:user.username, email: payload.email});
       msg.className = "alert success"; 
       msg.textContent = "Login successful. Redirecting…";
+
+       // --- POPUP: welcome + streak
+      Notify.success(`Welcome back, ${user.username}! `, `Let’s make progress today.`);
+      const s = computeStreak();
+      if (s > 0) Notify.info(`Streak: ${s} day${s>1?'s':''} `);
+      
       setTimeout(() => (location.hash = "#/home"), 200);
     } else {
       msg.className = "alert error"; 
@@ -397,6 +403,11 @@ function renderWorkoutLog() {
     logs.unshift(payload);
     store.setLogs(logs);
 
+    //POPUP: workout saved
+    const details = `${payload.exercise}: ${payload.sets}×${payload.reps}` +
+                  (payload.weight ? ` @ ${formatUnits(payload.weight)}` : "");
+    Notify.success(Notify.praise(), details, 4500);
+  
     if (ok) {
       ok.textContent = "Workouts Saved!";
       form.reset();
@@ -404,9 +415,6 @@ function renderWorkoutLog() {
     }
   });
 }
-
-
-
 
 
 
@@ -466,14 +474,6 @@ function renderBodyDiagram() {
 
 
 
-
-
-
-
-
-
-
-
 function renderHistory() {
   if (!guard()) return;
   document.body.classList.remove("auth");
@@ -507,12 +507,12 @@ function renderHistory() {
 
       tr.innerHTML = `
         <td> ${l.date} </td>
-        <td> ${escapeHtml(l.exercise)} </td>
+        <td> ${escapeHTML(l.exercise)} </td>
         <td> ${l.sets} </td>
         <td> ${l.reps} </td>
         <td> ${formatUnits(l.weight)} </td>
         <td> ${vol} </td>
-        <td> ${escapeHtml(l.notes || "")} </td>
+        <td> ${escapeHTML(l.notes || "")} </td>
         <td><button class="btn btn-outline" data-del="${l.id}"> Delete </button></td>
       `;
       tbody.appendChild(tr);
@@ -545,7 +545,7 @@ function renderProgress() {
 
   logs.forEach((l) => {
     if(!byExercise[l.exercise]) {
-      byExercise[l.exercise] = {max: 0, sessions: 0, totalVal: 0};
+      byExercise[l.exercise] = {max: 0, sessions: 0, totalVol: 0};
     }
     byExercise[l.exercise].max = Math.max(byExercise[l.exercise].max, l.weight);
     byExercise[l.exercise].sessions += 1;
