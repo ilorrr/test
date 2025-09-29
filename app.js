@@ -42,8 +42,7 @@ const store = {
 function computeStreak(){
   const logs = store.getLogs();
   if (!logs.length) return 0;
-  const days = new Set(logs.map(l => String(l.date).slice(0,10)));
-
+  const days = new Set(logs.map(l => String(l.date).slice(0,10))
   const today = new Date(); today.setHours(0,0,0,0);
   const todayKey = today.toISOString().slice(0,10);
 
@@ -53,7 +52,7 @@ function computeStreak(){
   while (true) {
     const key = new Date(cursor).toISOString().slice(0,10);
     if (!days.has(key)) break;
-    streak += 1;
+    streak ++;
     cursor -= 86400000;
   }
   return streak;
@@ -129,7 +128,7 @@ function $(sel, root=document){
 }
 
 function on(el, evt, cb){
-    el.addEventListener(evt, cb);
+    if (el) el.addEventListener(evt, cb);
 }
 
 //Email & Password Validation
@@ -246,14 +245,14 @@ function renderLogin(){
       msg.textContent = "Login successful. Redirecting…";
 
    
-      document.body.classList.remove("auth");
-      setTimeout(() => (location.hash = "#/home"), 200);
+      
 
       //POPUP: welcome + streak
       Notify.success(`Welcome back, ${user.username}! `, `Let’s make progress today.`);
       const s = computeStreak();
       if (s > 0) Notify.info(`Streak: ${s} day${s>1?'s':''} `);
-      
+      document.body.classList.remove("auth");
+      setTimeout(() => (location.hash = "#/home"), 200);
     } else {
       msg.className = "alert error"; 
       msg.textContent = "Invalid email or password.";
@@ -316,22 +315,7 @@ function renderHome(){
   const user = store.getCurrentUser();
   mount("home-template", {username: user.username});
 
-  const tabTitle = $("[data-tab-title]");
-  const tabDescription = $("[data-tab-description]");
-
-  switch(tab){
-    case "stats":
-      tabTitle.textContent = "Statistics";
-      tabDescription.textContent = "Placeholder Stats Card";
-      break;
-    case "settings":
-      tabTitle.textContent = "Settings";
-      tabDescription.textContent = "Placeholder Settings Card";
-      break;
-    default:
-      tabTitle.textContent = "Activity";
-      tabDescription.textContent = "Recent Actions Appear Here.";
-  }
+}
 
   //Dashboard Stats
   const logs = store.getLogs();
