@@ -38,6 +38,27 @@ const store = {
     localStorage.removeItem(SETTINGS_KEY);
   }
 
+  // Count consecutive workout days ending today (or yesterday if none today)
+function computeStreak(){
+  const logs = store.getLogs();
+  if (!logs.length) return 0;
+  const days = new Set(logs.map(l => String(l.date).slice(0,10)));
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const todayKey = today.toISOString().slice(0,10);
+
+  // allow streak to end yesterday if no log today
+  let cursor = days.has(todayKey) ? +today : +today - 86400000;
+  let streak = 0;
+  while (true) {
+    const key = new Date(cursor).toISOString().slice(0,10);
+    if (!days.has(key)) break;
+    streak += 1;
+    cursor -= 86400000;
+  }
+  return streak;
+}
+
   
 };
 
