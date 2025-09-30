@@ -43,7 +43,7 @@ const store = {
 function computeStreak(){
   const logs = store.getLogs();
   if (!logs.length) return 0;
-  const days = new Set(logs.map(l => String(l.date).slice(0,10));
+  const days = new Set(logs.map(l => String(l.date).slice(0,10)));
   const today = new Date(); today.setHours(0,0,0,0);
   const todayKey = today.toISOString().slice(0,10);
 
