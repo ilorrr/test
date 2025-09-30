@@ -1,3 +1,4 @@
+
 const USERS_KEY = "users";
 const CURRENT_USER_KEY = "currentUser";
 const LOGS_KEY = "neurofit.logs";
