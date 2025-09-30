@@ -452,7 +452,7 @@ window.addEventListener("load", () => {
 /* Congrats/toast utility */
 const Notify = (() => {
   const containerId = "congrats";
-  const PRAISE = ["Nice work!", "Let’s go!", "Consistency is elite.", "You showed up today.", "Small steps add up."];  
+  const PRAISE = ["Nice work!", "Let’s go!", "Consistency is key.", "Keep it up!!.", "Small steps add up."];  
   const icon = (t) => (t === "success" ? "✅" : t === "error" ? "⚠️" : "ℹ️");
 
   function ensureContainer() {
