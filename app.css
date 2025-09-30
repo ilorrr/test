@@ -364,10 +364,10 @@ body.auth .alert{margin-top: 10px;}
 .congrat-info{ border-color: rgba(124,58,237,.4); }
 .congrat-error{ border-color: rgba(239,68,68,.4); }
 .congrat-icon{ font-size: 1.1rem; line-height: 1; padding-top: 2px; }
-.congratbody strong{ display:block; }
+.congrat-body strong{ display:block; }
 .congrat-msg{ color: var(--muted); margin-top: 2px; }
 .congrat-close{
   background: transparent; border: 0; color: var(--muted);
   cursor: pointer; font-size: 1rem; margin-left: 8px;
 }
-@media (prefers-reduced-motion: reduce){ .toast{ transition:none; } }
+@media (prefers-reduced-motion: reduce){ .congrat{ transition:none; } }
