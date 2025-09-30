@@ -1,158 +1,96 @@
+"use strict";
 
+/* Keys */
 const USERS_KEY = "users";
 const CURRENT_USER_KEY = "currentUser";
 const LOGS_KEY = "neurofit.logs";
-const SETTINGS_KEY = "neurofit.settings"
+const SETTINGS_KEY = "neurofit.settings";
 
-//Storage
+/* Storage helpers */
 const store = {
-  getUsers(){
-    return JSON.parse(localStorage.getItem(USERS_KEY) || "{}");
-  },
-  setUsers(u){
-    localStorage.setItem(USERS_KEY, JSON.stringify(u));
-  },
-  getCurrentUser(){
-    const r = localStorage.getItem(CURRENT_USER_KEY); 
-    return r? JSON.parse(r): null;
-  },
-  setCurrentUser(u){
-    localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(u));
-  },
-  clearCurrentUser(){
-    localStorage.removeItem(CURRENT_USER_KEY);
-  },
-  getLogs(){
-    return JSON.parse(localStorage.getItem(LOGS_KEY) || "[]");
-  },
-  setLogs(arr){
-    localStorage.setItem(LOGS_KEY, JSON.stringify(arr));
-  },
-  getSettings(){
-    return JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}");
-  },
-  setSettings(obj){
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(obj));
-  },
-  clearData(){
-    localStorage.removeItem(LOGS_KEY);
-    localStorage.removeItem(SETTINGS_KEY);
-  }
+  getUsers() { return JSON.parse(localStorage.getItem(USERS_KEY) || "{}"); },
+  setUsers(u) { localStorage.setItem(USERS_KEY, JSON.stringify(u)); },
+  getCurrentUser() { const r = localStorage.getItem(CURRENT_USER_KEY); return r ? JSON.parse(r) : null; },
+  setCurrentUser(u) { localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(u)); },
+  clearCurrentUser() { localStorage.removeItem(CURRENT_USER_KEY); },
+  getLogs() { return JSON.parse(localStorage.getItem(LOGS_KEY) || "[]"); },
+  setLogs(arr) { localStorage.setItem(LOGS_KEY, JSON.stringify(arr)); },
+  getSettings() { return JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}"); },
+  setSettings(obj) { localStorage.setItem(SETTINGS_KEY, JSON.stringify(obj)); },
+  clearData() { localStorage.removeItem(LOGS_KEY); localStorage.removeItem(SETTINGS_KEY); }
 };
 
-  // Count consecutive workout days ending today (or yesterday if none today)
-function computeStreak(){
+/* Streak calc */
+function computeStreak() {
   const logs = store.getLogs();
   if (!logs.length) return 0;
-  const days = new Set(logs.map(l => String(l.date).slice(0,10)));
+  const days = new Set(logs.map(l => String(l.date).slice(0, 10)));
   const today = new Date(); today.setHours(0,0,0,0);
   const todayKey = today.toISOString().slice(0,10);
-
-  // allow streak to end yesterday if no log today
-  let cursor = days.has(todayKey) ? +today : +today - 86400000;
+  let cursor = days.has(todayKey) ? +today : (+today - 86400000);
   let streak = 0;
   while (true) {
     const key = new Date(cursor).toISOString().slice(0,10);
     if (!days.has(key)) break;
-    streak ++;
-    cursor -= 86400000;
+    streak++; cursor -= 86400000;
   }
   return streak;
 }
 
-//Helpers
-function mount(templateId, data = {}){
-    const template = document.getElementById(templateId);
-    const clone = template.content.cloneNode(true);
-
-    Object.keys(data).forEach((key) => {
-      const element = clone.querySelector(`[data-${key}]`);
-      if(element){
-        element.textContent = data[key];
-      }
-    });
-
-    document.getElementById("app").innerHTML = '';
-    document.getElementById("app").appendChild(clone);
+/* Small helpers */
+function mount(templateId, data = {}) {
+  const template = document.getElementById(templateId);
+  const clone = template.content.cloneNode(true);
+  Object.keys(data).forEach(k => {
+    const el = clone.querySelector(`[data-${k}]`);
+    if (el) el.textContent = data[k];
+  });
+  const app = document.getElementById("app");
+  app.innerHTML = "";
+  app.appendChild(clone);
 }
-
-function isAuthed(){
-    return !!store.getCurrentUser();
-}
-
-function guard(){
-    if(!isAuthed()){
-        location.hash="#/login";
-        return false;
-    }
-    return true;
-}
-
-function $(sel, root=document){
-    return root.querySelector(sel);
-}
-
-function on(el, evt, cb){
-    if (el) el.addEventListener(evt, cb);
-}
-
-//Email & Password Validation
+const $ = (sel, root = document) => root.querySelector(sel);
+const on = (el, evt, cb) => el && el.addEventListener(evt, cb);
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-function scorePassword(pw){
-  let score = 0;
-  if (pw.length >= 8) score++;
-  if (/[A-Z]/.test(pw)) score++;
-  if (/[a-z]/.test(pw) && /\d/.test(pw)) score++;
-  if (/[^A-Za-z0-9]/.test(pw)) score++;
-  return Math.min(score, 4);
-}
 
-function validateRegister({username, email, password}){
-  const errors = {};
-  if (!username || username.trim().length < 3){
-   errors.username = "Username must be at least 3 characters."; 
-  }
-  if (!emailRegex.test(email)){
-    errors.email = "Enter a valid email address.";
-  }
-  
-  const s = scorePassword(password);
-  if (s < 3){
-    errors.password = "Password must be 8+ chars with upper/lowercase, a number, and preferably a symbol.";
-  }
-  return { ok: Object.keys(errors).length === 0, errors, score: s };
+function scorePassword(pw) {
+  let s = 0;
+  if (pw.length >= 8) s++;
+  if (/[A-Z]/.test(pw)) s++;
+  if (/[a-z]/.test(pw) && /\d/.test(pw)) s++;
+  if (/[^A-Za-z0-9]/.test(pw)) s++;
+  return Math.min(s, 4);
 }
-
-function validateLogin({email, password}){
+function validateRegister({ username, email, password }) {
   const errors = {};
-  if (!emailRegex.test(email)){
-    errors.email = "Invalid email.";
-  }
-  if (!password){
-    errors.password = "Password is required.";
-  }
+  if (!username || username.trim().length < 3) errors.username = "Username must be at least 3 characters.";
+  if (!emailRegex.test(email)) errors.email = "Enter a valid email address.";
+  if (scorePassword(password) < 3) errors.password = "Password must be 8+ chars with upper/lowercase, a number, and preferably a symbol.";
   return { ok: Object.keys(errors).length === 0, errors };
 }
-
-function escapeHTML(str){
-  return String(str).replace(/[&<>'"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[c]));
+function validateLogin({ email, password }) {
+  const errors = {};
+  if (!emailRegex.test(email)) errors.email = "Invalid email.";
+  if (!password) errors.password = "Password is required.";
+  return { ok: Object.keys(errors).length === 0, errors };
 }
-
+function escapeHTML(str) {
+  return String(str).replace(/[&<>'"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;" }[c]));
+}
 function startOfWeek(d = new Date()) {
   const x = new Date(d);
   const day = (x.getDay() + 6) % 7;
-
-  x.setHours(0, 0, 0, 0);
-  x.setDate(x.getDate() - day);
+  x.setHours(0,0,0,0); x.setDate(x.getDate() - day);
   return x;
 }
-
 function formatUnits(w) {
   const units = store.getSettings().units || "lbs";
   return `${w} ${units}`;
 }
+function isAuthed() { return !!store.getCurrentUser(); }
+function guard() { if (!isAuthed()) { location.hash = "#/login"; return false; } return true; }
 
-//Router
+/* Router */
 const routes = {
   "#/login": renderLogin,
   "#/register": renderRegister,
@@ -164,26 +102,20 @@ const routes = {
   "#/library": renderLibrary,
   "#/settings": renderSettings
 };
-
-function render(){
+function render() {
   const hash = location.hash || "#/login";
   const routeKey = hash.split("?")[0];
   const publicRoutes = ["#/login", "#/register"];
   const isPublic = publicRoutes.includes(routeKey);
-
-  if(!isPublic && !isAuthed()){
-    location.hash = "#/login";
-    return;
-  }
-
+  if (!isPublic && !isAuthed()) { location.hash = "#/login"; return; }
   (routes[routeKey] || routes["#/home"])();
   updateChrome();
   updateActiveNav(routeKey);
 }
 
-//Renderers
-function renderLogin(){
-  document.body.classList.add("auth");      // compact centered mode
+/* Renderers */
+function renderLogin() {
+  document.body.classList.add("auth");
   mount("login-template");
   $("#sidebar")?.classList.remove("open");
 
@@ -191,42 +123,32 @@ function renderLogin(){
   const msg = $("#loginMsg");
   on(form, "submit", (e) => {
     e.preventDefault();
-    const payload = {
-      email: $("#loginEmail").value.trim().toLowerCase(),
-      password: $("#loginPassword").value
-    };
-    
+    const payload = { email: $("#loginEmail").value.trim().toLowerCase(), password: $("#loginPassword").value };
     const v = validateLogin(payload);
     $("#loginEmailErr").textContent = v.errors.email || "";
     $("#loginPasswordErr").textContent = v.errors.password || "";
-    if(!v.ok) return;
+    if (!v.ok) return;
 
     const users = store.getUsers();
     const user = users[payload.email];
-    
-    if (user && user.password === payload.password){
-      store.setCurrentUser({username:user.username, email: payload.email});
-      msg.className = "alert success"; 
+    if (user && user.password === payload.password) {
+      store.setCurrentUser({ username: user.username, email: payload.email });
+      msg.className = "alert success";
       msg.textContent = "Login successful. Redirecting…";
-
-   
-      
-
-      //POPUP: welcome + streak
-      Notify.success(`Welcome back, ${user.username}! `, `Let’s make progress today.`);
+      Notify.success(`Welcome back, ${user.username}!`, `Let’s make progress today.`);
       const s = computeStreak();
-      if (s > 0) Notify.info(`Streak: ${s} day${s>1?'s':''} `);
+      if (s > 0) Notify.info(`Streak: ${s} day${s>1?"s":""}`);
       document.body.classList.remove("auth");
       setTimeout(() => (location.hash = "#/home"), 200);
     } else {
-      msg.className = "alert error"; 
+      msg.className = "alert error";
       msg.textContent = "Invalid email or password.";
     }
   });
 }
 
-function renderRegister(){
-  document.body.classList.add("auth");      // compact centered mode
+function renderRegister() {
+  document.body.classList.add("auth");
   mount("register-template");
   $("#sidebar")?.classList.remove("open");
 
@@ -244,25 +166,17 @@ function renderRegister(){
 
   on(form, "submit", (e) => {
     e.preventDefault();
-    const payload = {
-      username: $("#regUsername").value,
-      email: $("#regEmail").value.trim().toLowerCase(),
-      password: pw.value
-    };
-    
+    const payload = { username: $("#regUsername").value, email: $("#regEmail").value.trim().toLowerCase(), password: pw.value };
     const v = validateRegister(payload);
     $("#regUsernameErr").textContent = v.errors.username || "";
     $("#regEmailErr").textContent = v.errors.email || "";
     $("#regPasswordErr").textContent = v.errors.password || "";
-    if(!v.ok) return;
+    if (!v.ok) return;
 
     const users = store.getUsers();
-    if (users[payload.email]){
-      msg.className = "alert error";
-      msg.textContent = "User already exists.";
-      return;
+    if (users[payload.email]) {
+      msg.className = "alert error"; msg.textContent = "User already exists."; return;
     }
-    
     users[payload.email] = { username: payload.username, password: payload.password };
     store.setUsers(users);
     msg.className = "alert success";
@@ -271,71 +185,31 @@ function renderRegister(){
   });
 }
 
-function renderHome(){
-  if(!guard()) return;
-  document.body.classList.remove("auth");   // back to dashboard layout
-
-  const params = new URLSearchParams(location.hash.split("?")[1] || "");
-  const tab = params.get("tab") || "overview";
+function renderHome() {
+  if (!guard()) return;
+  document.body.classList.remove("auth");
   const user = store.getCurrentUser();
-  mount("home-template", {username: user.username});
+  mount("home-template", { username: user.username });
 
-
-  //Dashboard Stats
   const logs = store.getLogs();
   const weekStart = startOfWeek(new Date());
-  const thisWeek = logs.filter((l) => new Date(l.date) >= weekStart);
-  const workoutsCount = new Set(thisWeek.map((l) => l.date)).size;
+  const thisWeek = logs.filter(l => new Date(l.date) >= weekStart);
+  const workoutsCount = new Set(thisWeek.map(l => l.date)).size;
   const volume = thisWeek.reduce((s, l) => s + l.sets * l.reps * l.weight, 0);
-  const statWorkouts = $("#statWorkouts");
-  const statVolume = $("#statVolume");
-
-  if (statWorkouts){
-    statWorkouts.textContent = workoutsCount;
-  }
-  if (statVolume){
-    statVolume.textContent = volume.toLocaleString();
-  }
+  $("#statWorkouts").textContent = String(workoutsCount);
+  $("#statVolume").textContent = volume.toLocaleString();
 
   const list = $("#activityList");
-  if (list){
-    list.innerHTML = "";
-    logs.slice(0, 5).forEach((l) => {
-      const li = document.createElement("li");
-      li.textContent = `${l.date} • ${l.exercise} • ${l.sets}x${l.reps} @ ${formatUnits(l.weight)}`;
-      list.appendChild(li);
-    });
-  }
-
-  // Demo quick-form validation
-  const qForm = $("#quickForm");
-  const qErr = $("#quickErr");
-  const qOk = $("#quickOk");
-  if (qForm){
-    on(qForm, "submit", (e) => {
-      e.preventDefault();
-      qErr.textContent= ""; 
-      qOk.textContent= "";
-    
-      const title = $("#quickTitle").value.trim();
-      const prio = $("#quickPriority").value;
-      if (title.length < 3){
-          qErr.textContent= "Title must be at least 3 characters.";
-          return;
-      }
-      if (!prio){
-        qErr.textContent= "Please choose a priority.";
-        return;
-      }
-    
-      qOk.textContent= "Saved (demo).";
-      qForm.reset();
-    });
-  }
+  list.innerHTML = "";
+  logs.slice(0, 5).forEach(l => {
+    const li = document.createElement("li");
+    li.textContent = `${l.date} • ${l.exercise} • ${l.sets}x${l.reps} @ ${formatUnits(l.weight)}`;
+    list.appendChild(li);
+  });
 }
 
 function renderWorkoutLog() {
-  if(!guard()) return;
+  if (!guard()) return;
   document.body.classList.remove("auth");
   mount("workout-log-template");
   $("#sidebar")?.classList.remove("open");
@@ -343,56 +217,42 @@ function renderWorkoutLog() {
   const form = $("#workoutForm");
   const err = $("#woErr");
   const ok = $("#woOK");
-
   const today = new Date().toISOString().slice(0, 10);
   $("#woDate").value = today;
 
   on(form, "submit", (e) => {
     e.preventDefault();
-    if(err) err.textContent = "";
-    if(ok) ok.textContent = "";
-
+    err.textContent = ""; ok.textContent = "";
     const units = store.getSettings().units || "lbs";
     const notesEl = $("#woNotes");
     const payload = {
-    id: crypto.randomUUID(),
-    date: $("#woDate").value || today,
-    exercise: $("#woExercise").value.trim(),
-    sets: +$("#woSets").value,
-    reps: +$("#woReps").value,
-    weight: +$("#woWeight").value,
-    notes: notesEl ? notesEl.value.trim() : "",
-    units,
-    createdAt: Date.now()
-};
-
-    if (!payload.exercise || !payload.sets || !payload.reps) {
-      if (err) {
-        err.textContent = "Please Fill Sets, Reps, and Exercise.";
-        return;
-      }
-    }
+      id: crypto.randomUUID(),
+      date: $("#woDate").value || today,
+      exercise: $("#woExercise").value.trim(),
+      sets: +$("#woSets").value,
+      reps: +$("#woReps").value,
+      weight: +$("#woWeight").value,
+      notes: notesEl ? notesEl.value.trim() : "",
+      units,
+      createdAt: Date.now()
+    };
+    if (!payload.exercise || !payload.sets || !payload.reps) { err.textContent = "Please fill sets, reps, and exercise."; return; }
 
     const logs = store.getLogs();
     logs.unshift(payload);
     store.setLogs(logs);
 
-    //POPUP: workout saved
-    const details = `${payload.exercise}: ${payload.sets}×${payload.reps}` +
-                  (payload.weight ? ` @ ${formatUnits(payload.weight)}` : "");
+    const details = `${payload.exercise}: ${payload.sets}×${payload.reps}${payload.weight ? ` @ ${formatUnits(payload.weight)}` : ""}`;
     Notify.success(Notify.praise(), details, 4500);
-  
-    if (ok) {
-      ok.textContent = "Workouts Saved!";
-      form.reset();
-      $("#woDate").value = today;
-    }
+    ok.textContent = "Workout saved!";
+    form.reset();
+    $("#woDate").value = today;
   });
 }
 
-
-
 function renderBodyDiagram() {
+  if (!guard()) return;
+  document.body.classList.remove("auth");
   mount("body-diagram-template");
 
   const toggleBtn = document.getElementById("toggleViewBtn");
@@ -435,18 +295,14 @@ function renderBodyDiagram() {
     info.style.display = "block";
   }
 
-  // attach clicks
+  // attach clicks to defined ids; map biceps2 -> biceps
   Object.keys(exercises).forEach(id => {
     const el = document.getElementById(id);
-    if (el) {
-      el.addEventListener("click", () => showMuscle(id, id.toUpperCase()));
-    }
+    if (el) el.addEventListener("click", () => showMuscle(id, id.toUpperCase()));
   });
+  const b2 = document.getElementById("biceps2");
+  if (b2) b2.addEventListener("click", () => showMuscle("biceps", "BICEPS"));
 }
-
-
-
-
 
 function renderHistory() {
   if (!guard()) return;
@@ -463,47 +319,37 @@ function renderHistory() {
     const logs = store.getLogs().slice();
     const dateVal = fDate.value;
     const textVal = fText.value.toLowerCase().trim();
-
-    let list = logs.filter((l) => (!dateVal || l.date === dateVal) && (!textVal || l.exercise.toLowerCase().includes(textVal)));
-
-    if (fSort.value === "oldest"){
-      list.sort((a, b) => a.createdAt - b.createdAt);
-    } else if (fSort.value === "volume") {
-      list.sort((a, b) => b.sets * b.reps * b.weight - (a.sets * a.reps * a.weight));
-    } else {
-      list.sort((a, b) => b.createdAt - a.createdAt);
-    }
+    let list = logs.filter(l => (!dateVal || l.date === dateVal) && (!textVal || l.exercise.toLowerCase().includes(textVal)));
+    if (fSort.value === "oldest") list.sort((a,b) => a.createdAt - b.createdAt);
+    else if (fSort.value === "volume") list.sort((a,b) => (b.sets*b.reps*b.weight) - (a.sets*a.reps*a.weight));
+    else list.sort((a,b) => b.createdAt - a.createdAt);
 
     tbody.innerHTML = "";
-    list.forEach((l) => {
+    list.forEach(l => {
       const tr = document.createElement("tr");
       const vol = l.sets * l.reps * l.weight;
-
       tr.innerHTML = `
-        <td> ${l.date} </td>
-        <td> ${escapeHTML(l.exercise)} </td>
-        <td> ${l.sets} </td>
-        <td> ${l.reps} </td>
-        <td> ${formatUnits(l.weight)} </td>
-        <td> ${vol} </td>
-        <td> ${escapeHTML(l.notes || "")} </td>
-        <td><button class="btn btn-outline" data-del="${l.id}"> Delete </button></td>
-      `;
+        <td>${l.date}</td>
+        <td>${escapeHTML(l.exercise)}</td>
+        <td>${l.sets}</td>
+        <td>${l.reps}</td>
+        <td>${formatUnits(l.weight)}</td>
+        <td>${vol}</td>
+        <td>${escapeHTML(l.notes || "")}</td>
+        <td><button class="btn btn-outline" data-del="${l.id}">Delete</button></td>`;
       tbody.appendChild(tr);
     });
 
-    tbody.querySelectorAll("[data-del]").forEach((btn) => {
+    tbody.querySelectorAll("[data-del]").forEach(btn => {
       btn.addEventListener("click", () => {
         const id = btn.getAttribute("data-del");
-        const remaining = store.getLogs().filter((x) => x.id !== id);
-
+        const remaining = store.getLogs().filter(x => x.id !== id);
         store.setLogs(remaining);
         reflow();
       });
     });
   }
-
-  [fDate, fText, fSort].forEach((i) => i.addEventListener("input", reflow));
+  [fDate, fText, fSort].forEach(i => i.addEventListener("input", reflow));
   reflow();
 }
 
@@ -516,23 +362,18 @@ function renderProgress() {
   const list = $("#progressList");
   const logs = store.getLogs();
   const byExercise = {};
-
-  logs.forEach((l) => {
-    if(!byExercise[l.exercise]) {
-      byExercise[l.exercise] = {max: 0, sessions: 0, totalVal: 0};
-    }
+  logs.forEach(l => {
+    if (!byExercise[l.exercise]) byExercise[l.exercise] = { max: 0, sessions: 0, totalVal: 0 };
     byExercise[l.exercise].max = Math.max(byExercise[l.exercise].max, l.weight);
     byExercise[l.exercise].sessions += 1;
     byExercise[l.exercise].totalVal += l.sets * l.reps * l.weight;
   });
 
   const entries = Object.entries(byExercise);
-  if(!entries.length) {
-    list.innerHTML = `<li class="helper"> Log some workouts to see progress. </li>`;
-  } else {
-    list.innerHTML = entries.map(([name, v]) => `<li><strong> ${escapeHTML(name)} </strong> — max ${formatUnits(v.max)}, 
-      sessions ${v.sessions}, volume ${v.totalVal.toLocaleString()} </li>`).join("");
-  }
+  if (!entries.length) list.innerHTML = `<li class="helper">Log some workouts to see progress.</li>`;
+  else list.innerHTML = entries.map(([name, v]) =>
+    `<li><strong>${escapeHTML(name)}</strong> — max ${formatUnits(v.max)}, sessions ${v.sessions}, volume ${v.totalVal.toLocaleString()}</li>`
+  ).join("");
 }
 
 function renderLibrary() {
@@ -559,118 +400,96 @@ function renderSettings() {
   if (s.weeklyGoal) weeklyGoal.value = s.weeklyGoal;
 
   on(saveBtn, "click", () => {
-    store.setSettings({
-      ...store.getSettings(),
-      units: unitsSel.value,
-      weeklyGoal: +weeklyGoal.value || null
-    });
-
+    store.setSettings({ ...store.getSettings(), units: unitsSel.value, weeklyGoal: +weeklyGoal.value || null });
     msg.className = "alert success";
-    msg.textContent = "Settings Saved.";
+    msg.textContent = "Settings saved.";
   });
-
   on(clearBtn, "click", () => {
-    if (confirm("Delete All Logs and Settings?")) {
+    if (confirm("Delete all logs and settings?")) {
       store.clearData();
       msg.className = "alert";
-      msg.textContent = "All Data Cleared.";
+      msg.textContent = "All data cleared.";
     }
   });
 }
 
-//Chrome (logout + sidebar)
-function updateChrome(){
+/* Chrome/UI */
+function updateChrome() {
   const authed = isAuthed();
   const logoutBtn = $("#logoutBtn");
-  if (authed){
-    logoutBtn.classList.remove("hidden");
-  } else {
-    logoutBtn.classList.add("hidden");
-  }
-
+  authed ? logoutBtn.classList.remove("hidden") : logoutBtn.classList.add("hidden");
   $("#shell").style.display = authed ? "grid" : "block";
   $("#sidebar").style.display = authed ? "block" : "none";
 }
-
-//Sidebar toggle for mobile
-on($("#menuToggle"), "click", ()=>{
+on($("#menuToggle"), "click", () => {
   const sb = $("#sidebar");
   const open = sb.classList.toggle("open");
   $("#menuToggle").setAttribute("aria-expanded", String(open));
 });
-
-//Global logout
-on(document, "click", (e)=>{
-  if (e.target && e.target.id === "logoutBtn"){
-    store.clearCurrentUser();
-    location.hash = "#/login";
+on(document, "click", (e) => {
+  if (e.target && e.target.id === "logoutBtn") {
+    store.clearCurrentUser(); location.hash = "#/login";
   }
 });
-
-//Highlight Active Link
 function updateActiveNav(routeKey) {
-  document.querySelectorAll(".sidebar-link").forEach((a) => {
+  document.querySelectorAll(".sidebar-link").forEach(a => {
     a.classList.toggle("active", a.getAttribute("href") === routeKey);
   });
 }
 
-//Boot
+/* Boot */
 window.addEventListener("hashchange", render);
 window.addEventListener("load", () => {
   if (!location.hash) location.hash = "#/home";
   render();
 });
 
-// Congrats utility 
+/* Congrats/toast utility */
 const Notify = (() => {
-  const containerId = 'congrats';
-  const PRAISE = [
-    'Nice work!', 'Lets Go ! ', 'Consistency is elite. ',
-    'You showed up today. ', 'Small steps add up. '
-  ];
-  const icon = (t) => t === 'success' ? '✅' : t === 'error' ? '⚠️' : 'ℹ️';
+  const containerId = "congrats";
+  const PRAISE = ["Nice work!", "Let’s go!", "Consistency is elite.", "You showed up today.", "Small steps add up."];  
+  const icon = (t) => (t === "success" ? "✅" : t === "error" ? "⚠️" : "ℹ️");
 
   function ensureContainer() {
     let c = document.getElementById(containerId);
     if (!c) {
-      c = document.createElement('div');
+      c = document.createElement("div");
       c.id = containerId;
-      c.className = 'congrats';
-      c.setAttribute('aria-live','polite');
-      c.setAttribute('aria-atomic','true');
+      c.className = "congrats";
+      c.setAttribute("aria-live", "polite");
+      c.setAttribute("aria-atomic", "true");
       document.body.appendChild(c);
     }
     return c;
   }
 
-  function show({ title, message = '', type = 'info', duration = 3500 }) {
+  function show({ title, message = "", type = "info", duration = 3500 }) {
     const c = ensureContainer();
-    const el = document.createElement('div');
+    const el = document.createElement("div");
     el.className = `congrat congrat-${type}`;
     el.innerHTML = `
       <div class="congrat-icon">${icon(type)}</div>
       <div class="congrat-body">
         <strong>${title}</strong>
-        ${message ? `<div class="congrat-msg">${message}</div>` : ''}
+        ${message ? `<div class="congrat-msg">${message}</div>` : ""}
       </div>
       <button class="congrat-close" aria-label="Close">&times;</button>
     `;
     c.appendChild(el);
-    requestAnimationFrame(() => el.classList.add('show'));
+    requestAnimationFrame(() => el.classList.add("show"));
 
     const remove = () => {
-      el.classList.remove('show');
-      el.addEventListener('transitionend', () => el.remove(), { once:true });
+      el.classList.remove("show");
+      el.addEventListener("transitionend", () => el.remove(), { once: true });
     };
     const t = setTimeout(remove, duration);
-    el.querySelector('.congrat-close').addEventListener('click', () => { clearTimeout(t); remove(); });
+    el.querySelector(".congrat-close").addEventListener("click", () => { clearTimeout(t); remove(); });
   }
 
-  // quick helpers
-  const success = (t, m, d) => show({ title: t, message: m, type: 'success', duration: d });
-  const info = (t, m, d) => show({ title: t, message: m, type: 'info', duration: d });
-  const praise = () => PRAISE[Math.floor(Math.random() * PRAISE.length)];
-
-  return { show, success, info, praise };
+  return {
+    show,
+    success: (t, m, d) => show({ title: t, message: m, type: "success", duration: d }),
+    info: (t, m, d) => show({ title: t, message: m, type: "info", duration: d }),
+    praise: () => PRAISE[Math.floor(Math.random() * PRAISE.length)]
+  };
 })();
-
