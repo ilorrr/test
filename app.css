@@ -75,5 +75,52 @@ body.auth .alert{margin-top:10px;}
 .body-diagram svg rect:hover{fill:#4CAF50;}
 .muscle-info{padding:12px;}
 
-/* Toasts */
 .congrats{position:fixed;
+/* Toasts */
+.congrats{
+  position:fixed;
+  right:16px;
+  bottom:16px;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  z-index:1000;
+  pointer-events:none;
+}
+
+.congrat{
+  pointer-events:auto;
+  display:flex;
+  gap:10px;
+  align-items:flex-start;
+  padding:10px 12px;
+  background:var(--card);
+  border:1px solid var(--border);
+  border-left:4px solid #6b7280; /* default */
+  border-radius:12px;
+  min-width:260px; max-width:360px;
+  box-shadow:0 10px 30px rgba(0,0,0,.35);
+  transform:translateY(8px);
+  opacity:0;
+  transition:transform .2s ease, opacity .2s ease;
+}
+
+.congrat.show{ transform:translateY(0); opacity:1; }
+
+.congrat-success{ border-left-color: var(--ok); }
+.congrat-error{   border-left-color: var(--danger); }
+.congrat-info{    border-left-color: var(--primary); }
+
+.congrat-icon{ font-size:1.2rem; line-height:1; }
+.congrat-body{ flex:1; }
+.congrat-body strong{ display:block; margin-bottom:2px; }
+.congrat-msg{ color:var(--muted); font-size:.92rem; }
+
+.congrat-close{
+  all:unset;
+  cursor:pointer;
+  padding:0 6px;
+  color:var(--muted);
+  font-size:1.1rem;
+  line-height:1;
+}
