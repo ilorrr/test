@@ -136,9 +136,13 @@ function renderLogin() {
       msg.className = "alert success";
       msg.textContent = "Login successful. Redirecting…";
       Notify.success(`Welcome back, ${user.username}!`, `Let’s make progress today.`);
-      const s = computeStreak();
-      const streakMsg = s === 0? "Lets start today! " 'Streak: ${s} day${s === 1 ? "" : "s"}`;
-      Notify.info(streakMsg);
+     
+    const s = computeStreak();
+    const streakMsg = s === 0
+     ? "Streak: 0 days - start today! 💪"
+     : "Streak: " + s + " day" + (s === 1 ? "" : "s");
+    Notify.info(streakMsg);
+ 
       document.body.classList.remove("auth");
       setTimeout(() => (location.hash = "#/home"), 200);
     } else {
