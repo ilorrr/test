@@ -137,7 +137,7 @@ function renderLogin() {
       msg.textContent = "Login successful. Redirecting…";
       Notify.success(`Welcome back, ${user.username}!`, `Let’s make progress today.`);
       const s = computeStreak();
-      if (s > 0) Notify.info(`Streak: ${s} day${s>1?"s":""}`);
+      Notify.info(`Streak: ${s} day${s === 1 ? "" : "s"}`);
       document.body.classList.remove("auth");
       setTimeout(() => (location.hash = "#/home"), 200);
     } else {
