@@ -37,6 +37,7 @@ const store = {
     localStorage.removeItem(LOGS_KEY);
     localStorage.removeItem(SETTINGS_KEY);
   }
+};
 
   // Count consecutive workout days ending today (or yesterday if none today)
 function computeStreak(){
@@ -315,7 +316,6 @@ function renderHome(){
   const user = store.getCurrentUser();
   mount("home-template", {username: user.username});
 
-}
 
   //Dashboard Stats
   const logs = store.getLogs();
@@ -340,7 +340,7 @@ function renderHome(){
       const li = document.createElement("li");
       li.textContent = `${l.date} • ${l.exercise} • ${l.sets}x${l.reps} @ ${formatUnits(l.weight)}`;
       list.appendChild(li);
-    })
+    });
   }
 
   // Demo quick-form validation
@@ -396,7 +396,7 @@ function renderWorkoutLog() {
       sets: +$("#woSets").value,
       reps: +$("#woReps").value,
       weight: +$("#woWeight").value,
-      notes: $("#woNotes").value.trim(), units,
+      notes: $("#woNotes").$("#woNotes").value.trim(): "", units,
       createdAt: Date.now()
     };
 
