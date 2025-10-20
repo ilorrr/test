@@ -65,6 +65,58 @@ body{
   overflow:auto;
 }
 
+.images-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr); /* 3 images per row */
+  gap: 15px; /* space between images */
+  justify-items: center;
+}
+
+.images-grid img {
+  width: 250px;     /* make all images same width */
+  height: 250px;    /* consistent height */
+  object-fit: cover; /* crops nicely without stretching */
+  border-radius: 10px;
+  transition: transform 0.2s ease;
+}
+
+.images-grid img:hover {
+  transform: scale(1.05);
+}
+
+.body-diagram svg rect {
+  cursor: pointer;
+  transition: fill 0.2s ease;
+}
+
+.body-diagram svg rect:hover {
+  fill: #4CAF50; /* green highlight */
+}
+
+.muscle-info {
+  padding: 12px;
+}
+
+.workout-gallery {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 15px;
+}
+
+.workout-gallery img {
+  width: 200px;
+  height: 200px;
+  object-fit: cover;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  transition: transform 0.2s ease-in-out;
+}
+
+.workout-gallery img:hover {
+  transform: scale(1.05);
+}
+
 .content{
   padding:20px;
   max-width:1200px;
