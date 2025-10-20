@@ -252,7 +252,25 @@ const routes = {
     "#/workouts/history": renderHistory,
     "#/progress": renderProgress,
     "#/settings": renderSettings,
-    "#/generatePlan": renderGeneratePlan
+    "#/generatePlan": renderGeneratePlan,
+    "#/workouts/chest": () => renderMuscle("chest"),
+    "#/workouts/biceps": () => renderMuscle("biceps"),
+    "#/workouts/biceps2": () => renderMuscle("biceps2"),
+    "#/workouts/abs": () => renderMuscle("abs"),
+    "#/workouts/quadsL": () => renderMuscle("quadsL"),
+    "#/workouts/quadsR": () => renderMuscle("quadsR"),
+    "#/workouts/obliques": () => renderMuscle("obliques"),
+    "#/workouts/forearms": () => renderMuscle("forearms"),
+    "#/workouts/quads": () => renderMuscle("quads"),
+    "#/workouts/calves": () => renderMuscle("calves"),
+    "#/workouts/traps": () => renderMuscle("traps"),
+    "#/workouts/deltsL": () => renderMuscle("deltsL"),
+    "#/workouts/deltsR": () => renderMuscle("deltsR"),
+    "#/workouts/lats": () => renderMuscle("lats"),
+    "#/workouts/lowerBack": () => renderMuscle("lowerBack"),
+    "#/workouts/glutes": () => renderMuscle("glutes"),
+    "#/workouts/hamsL": () => renderMuscle("hamsL"),
+    "#/workouts/hamsR": () => renderMuscle("hamsR")
 };
 
 function render(){
@@ -413,59 +431,41 @@ function renderWorkoutLog(){
     });
 }
 
-function renderBodyDiagram(){
-    if (!guard()) return;
-    document.body.classList.remove("auth");
-    mount("body-diagram-template");
+function renderBodyDiagram() {
+  mount("body-diagram-template");
 
-    const toggleBtn = document.getElementById("toggleViewBtn");
-    const front = document.getElementById("frontView");
-    const back = document.getElementById("backView");
+  const toggleBtn = document.getElementById("toggleViewBtn");
+  const front = document.getElementById("frontView");
+  const back = document.getElementById("backView");
 
-    toggleBtn.addEventListener("click", () => {
-        const isFront = front.style.display !== "none";
-        front.style.display = isFront ? "none" : "block";
-        back.style.display = isFront ? "block" : "none";
-        toggleBtn.textContent = isFront ? "Show Front View" : "Show Back View";
+  toggleBtn.addEventListener("click", () => {
+    const isFront = front.style.display !== "none";
+    front.style.display = isFront ? "none" : "block";
+    back.style.display = isFront ? "block" : "none";
+    toggleBtn.textContent = isFront ? "Show Front View" : "Show Back View";
+  });
+
+const muscles = [
+  "chest", "biceps", "biceps2", "abs", "quadsL", "quadsR",
+  "obliques", "forearms", "quads", "calves",
+  "traps", "deltsL", "deltsR", "lats", "lowerBack", "glutes", "hamsL", "hamsR"
+];
+
+muscles.forEach(muscle => {
+  const el = document.getElementById(muscle);
+  if (el) {
+    el.addEventListener("click", () => {
+      location.hash = `#/workouts/${muscle}`;
     });
+  }
+});
+}
 
-    const exercises = {
-        chest: ["Bench Press", "Push-Ups", "Incline Press"],
-        biceps: ["Barbell Curl", "Dumbbell Curl"],
-        abs: ["Crunches", "Plank", "Leg Raise"],
-        quadsL: ["Squats", "Lunges"],
-        quadsR: ["Squats", "Lunges"],
-        traps: ["Shrugs", "Rack Pulls"],
-        deltsL: ["Overhead Press", "Lateral Raises"],
-        deltsR: ["Overhead Press", "Lateral Raises"],
-        lats: ["Pull-Ups", "Lat Pulldown"],
-        glutes: ["Hip Thrusts", "Glute Bridge"],
-        hamsL: ["Deadlifts", "Leg Curls"],
-        hamsR: ["Deadlifts", "Leg Curls"]
-    };
-
-    function showMuscle(id, label){
-        const info = document.getElementById("muscleInfo");
-        const name = document.getElementById("muscleName");
-        const list = document.getElementById("muscleExercises");
-        
-        name.textContent = label;
-        list.innerHTML = "";
-        (exercises[id] || []).forEach(ex => {
-            const li = document.createElement("li");
-            li.textContent = ex;
-            list.appendChild(li);
-        });
-        info.style.display = "block";
-    }
-
-    Object.keys(exercises).forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.addEventListener("click", () => showMuscle(id, id.toUpperCase())); 
-    });
-    
-    const b2 = document.getElementById("biceps2");
-    if (b2) b2.addEventListener("click", () => showMuscle("biceps", "BICEPS"));
+function renderMuscle(muscle) {
+  if (!guard()) return;
+  document.body.classList.remove("auth");
+  mount(`${muscle}-template`);   // expects <template id="biceps-template"> etc
+  $("#sidebar")?.classList.remove("open");
 }
 
 function renderHistory(){
