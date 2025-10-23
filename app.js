@@ -252,25 +252,7 @@ const routes = {
     "#/workouts/history": renderHistory,
     "#/progress": renderProgress,
     "#/settings": renderSettings,
-    "#/generatePlan": renderGeneratePlan,
-    "#/workouts/chest": () => renderMuscle("chest"),
-    "#/workouts/biceps": () => renderMuscle("biceps"),
-    "#/workouts/biceps2": () => renderMuscle("biceps2"),
-    "#/workouts/abs": () => renderMuscle("abs"),
-    "#/workouts/quadsL": () => renderMuscle("quadsL"),
-    "#/workouts/quadsR": () => renderMuscle("quadsR"),
-    "#/workouts/obliques": () => renderMuscle("obliques"),
-    "#/workouts/forearms": () => renderMuscle("forearms"),
-    "#/workouts/quads": () => renderMuscle("quads"),
-    "#/workouts/calves": () => renderMuscle("calves"),
-    "#/workouts/traps": () => renderMuscle("traps"),
-    "#/workouts/deltsL": () => renderMuscle("deltsL"),
-    "#/workouts/deltsR": () => renderMuscle("deltsR"),
-    "#/workouts/lats": () => renderMuscle("lats"),
-    "#/workouts/lowerBack": () => renderMuscle("lowerBack"),
-    "#/workouts/glutes": () => renderMuscle("glutes"),
-    "#/workouts/hamsL": () => renderMuscle("hamsL"),
-    "#/workouts/hamsR": () => renderMuscle("hamsR")
+    "#/generatePlan": renderGeneratePlan
 };
 
 function render(){
@@ -431,41 +413,167 @@ function renderWorkoutLog(){
     });
 }
 
-function renderBodyDiagram() {
-  mount("body-diagram-template");
+function renderBodyDiagram(){
+    if (!guard()) return;
+    document.body.classList.remove("auth");
+    mount("body-diagram-template");
 
-  const toggleBtn = document.getElementById("toggleViewBtn");
-  const front = document.getElementById("frontView");
-  const back = document.getElementById("backView");
+    const contentArea = document.getElementById("app");
+    if(contentArea) contentArea.classList.add("full-width");
 
-  toggleBtn.addEventListener("click", () => {
-    const isFront = front.style.display !== "none";
-    front.style.display = isFront ? "none" : "block";
-    back.style.display = isFront ? "block" : "none";
-    toggleBtn.textContent = isFront ? "Show Front View" : "Show Back View";
-  });
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.id = 'videoModal';
+    modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle"> Exercise Video </h3>
+                <button class="modal-close" aria-label="Close"> &times; </button>
+            </div>
+            <iframe id="modalVideo" class="modal-video" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+        </div>
+    `;
+    document.body.appendChild(modal);
 
-const muscles = [
-  "chest", "biceps", "biceps2", "abs", "quadsL", "quadsR",
-  "obliques", "forearms", "quads", "calves",
-  "traps", "deltsL", "deltsR", "lats", "lowerBack", "glutes", "hamsL", "hamsR"
-];
+    const toggleBtn = document.getElementById("toggleViewBtn");
+    const front = document.getElementById("frontView");
+    const back = document.getElementById("backView");
 
-muscles.forEach(muscle => {
-  const el = document.getElementById(muscle);
-  if (el) {
-    el.addEventListener("click", () => {
-      location.hash = `#/workouts/${muscle}`;
+    toggleBtn.addEventListener("click", () => {
+        const isFront = front.style.display !== "none";
+        front.style.display = isFront ? "none" : "block";
+        back.style.display = isFront ? "block" : "none";
+        toggleBtn.textContent = isFront ? "Show Front View" : "Show Back View";
     });
-  }
-});
-}
 
-function renderMuscle(muscle) {
-  if (!guard()) return;
-  document.body.classList.remove("auth");
-  mount(`${muscle}-template`);   // expects <template id="biceps-template"> etc
-  $("#sidebar")?.classList.remove("open");
+    const exercises = {
+        chest: [
+            {name: "Bench Press", img: "images/chest/Bench-Press.jpg", url: "https://www.youtube.com/embed/hWbUlkb5Ms4"},
+            {name: "Dumbbell Chest Flies", img: "images/chest/Dumbbell-Chest-Flies.jpg", url: ""},
+            {name: "Dumbbell Chest Press", img: "images/chest/Dumbbell-Chest-Press.jpg", url: ""},
+            {name: "Dumbbell Incline Chest Press", img: "images/chest/Dumbbell-Incline-Chest-Press.jpg", url: ""},
+            {name: "High-to-Low Cable Flies", img: "images/chest/High-to-Low-Cable-Crossover.jpg", url: ""},
+            {name: "Incline Bench Press", img: "images/chest/Incline-Bench-Press.jpg", url: ""},
+            {name: "Incline Chest Flies", img: "images/chest/Incline-Chest-Flies.jpg", url: ""},
+            {name: "Machine Chest Flies", img: "images/chest/Machine-Chest-Flies.jpg", url: ""},
+            {name: "Machine Chest Press", img: "images/chest/Machine-Chest-Press.jpg", url: ""}
+        ],
+        biceps: [
+            {name: "Alternating Dumbbell Curls", img: "images/biceps/Alternating-Dumbbell-Curls.jpg", url: ""},
+            {name: "Barbell Curls", img: "images/biceps/Barbell-Curls.jpg", url: ""},
+            {name: "Cable Bicep Curls", img: "images/biceps/Cable-Bicep-Curl.jpg", url: ""},
+            {name: "Concentration Curls", img: "images/biceps/Concentration-Curls.jpg", url: ""},
+            {name: "Cross-body Hammer Curls", img: "images/biceps/Cross-Body-Hammer-Curls.jpg", url: ""},
+            {name: "EZ-bar Curls", img: "images/biceps/Ez-Barbell-Curl.jpg", url: ""},
+            {name: "Hammer Curls", img: "images/biceps/Hammer-Curls.jpg", url: ""},
+            {name: "Incline Dumbbell Curls", img: "images/biceps/Incline-Dumbbell-Curl.jpg", url: ""},
+            {name: "Reverse Curls", img: "images/biceps/Reverse-Curl.jpg", url: ""},
+            {name: "Seated Alternating Dumbbell Curls", img: "images/biceps/Seated-Alternating-Dumbell-Curls.jpg", url: ""},
+            {name: "Standing Dumbbell Curls", img: "images/biceps/Standing-Dumbbell-Curls.jpg", url: ""},
+            {name: "Zottman Curls", img: "images/biceps/Zottman-Curls.jpg", url: ""}
+        ],
+        abs: [
+            {name: "Bicycle Crunches", img: "images/abs/Bicycle-Crunches.jpg", url: ""},
+            {name: "Crunches", img: "images/abs/Crunches.jpg", url: ""},
+            {name: "Dumbbell Side Bend", img: "images/abs/Dumbbell-Side-Bend.jpg", url: ""},
+            {name: "Flutter Kicks", img: "images/abs/Flutter-Kicks.jpg", url: ""},
+            {name: "Leg Raises", img: "images/abs/Leg-Raises.jpg", url: ""},
+            {name: "Mountain Climbers", img: "images/abs/Mountain-Climbers.jpg", url: ""},
+            {name: "Plank", img: "images/abs/Plank.jpg", url: ""},
+            {name: "Reverse Crunches", img: "images/abs/Reverse-Crunches.jpg", url: ""},
+            {name: "Russian Twist", img: "images/abs/Russian-Twist.jpg", url: ""},
+            {name: "Side Plank", img: "images/abs/Side-Plank.jpg", url: ""},
+            {name: "Toe Touches", img: "images/abs/Toe-Touches.jpg", url: ""},
+            {name: "V-Ups", img: "images/abs/V-Ups.jpg", url: ""},
+            {name: "Weighted Crunches", img: "images/abs/Weighted-Crunches.jpg", url: ""},
+            {name: "Weight Sit Ups", img: "images/abs/Weighted-Sit-Ups.jpg", url: ""},
+        ],
+        quads: ["Squats", "Lunges"],
+        traps: ["Shrugs", "Rack Pulls"],
+        delts: ["Overhead Press", "Lateral Raises"],
+        lats: ["Pull-Ups", "Lat Pulldown"],
+        glutes: ["Hip Thrusts", "Glute Bridge"],
+        hams: ["Deadlifts", "Leg Curls"]
+    };
+
+    const muscleMap = {
+        'quadsL': 'quads',
+        'quadsR': 'quads',
+        'deltsL': 'delts',
+        'deltsR': 'delts',
+        'hamsL': 'hams',
+        'hamsR': 'hams',
+        'biceps2': 'biceps'
+    };
+
+    function showMuscle(id, label){
+        const info = document.getElementById("muscleInfo");
+        const name = document.getElementById("muscleName");
+        const gallery = document.getElementById("muscleExercises");
+
+        if (!info || !name || !gallery) {
+            console.error("Elements Not Found.");
+            return;
+        }
+        
+        name.textContent = label;
+        gallery.innerHTML = "";
+        const muscleExercises = exercises[id] || [];
+        
+        muscleExercises.forEach(ex => {
+            console.log("Exercise:", ex.name, "Image path:", ex.img);
+            
+            const card = document.createElement("div");
+            card.className = "workout-card";
+            card.innerHTML = `
+                <img src="${ex.img}" alt="${ex.name}" style="border: 2px solid var(--border);" />
+                <h4> ${ex.name} </h4>
+            `;
+
+            const imgEl = card.querySelector('img');
+            imgEl.addEventListener('load', () => console.log("Image loaded:", ex.name));
+            imgEl.addEventListener('error', () => console.log("Image FAILED:", ex.name, ex.img));
+
+            card.addEventListener("click", () => {
+                document.getElementById('modalTitle').textContent = ex.name;
+                document.getElementById('modalVideo').src = ex.url;
+                modal.classList.add('show');
+            });
+            gallery.appendChild(card);
+        });
+        info.style.display = "block";
+    }
+
+    function closeModal(){
+        modal.classList.remove('show');
+        document.getElementById('modalVideo').src = '';
+    }
+    modal.querySelector('.modal-close').addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+    })
+
+    Object.keys(exercises).forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.style.cursor = "pointer";
+            el.addEventListener("click", () => {
+                const label = id.replace(/L|R|2/, '').toUpperCase();
+                showMuscle(id, label);
+            });
+        }
+    });
+
+    Object.entries(muscleMap).forEach(([svgId, exerciseGroup]) => {
+        const el = document.getElementById(svgId);
+        if (el) {
+            el.style.cursor = "pointer";
+            el.addEventListener("click", () => {
+                const label = exerciseGroup.toUpperCase();
+                showMuscle(exerciseGroup, label);
+            });
+        }
+    });
 }
 
 function renderHistory(){
