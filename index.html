@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="stylesheet" href="app.css" />
   </head>
+  
   <body>
     <nav class="topbar">
       <button id="menuToggle" class="icon-btn" aria-label="Open Menu" aria-expanded="false"> ☰ </button>
@@ -98,7 +99,7 @@
     <template id="home-template">
       <div class="grid cols-3" style="margin-bottom:16px;">
         <div class="card">
-          <h3>Welcome <span data-username></span> 👋 </h3>
+          <h3> Welcome <span data-username></span> 👋 </h3>
           <p> Here's a quick snapshot of your app. </p>
         </div>
         <div class="card">
@@ -175,454 +176,43 @@
       </section>
     </template>
 
-<!-- Body Diagram -->
-<template id="body-diagram-template">
-  <section class="card">
-    <h2> Body Diagram </h2>
-    <p class="helper"> Click on a muscle group to see suggested exercises </p>
+    <!-- Body Diagram -->
+    <template id="body-diagram-template">
+      <section class="card" id="body-diagram-card" style="max-width: 100% !important;">
+        <h2> Body Diagram </h2>
+        <p class="helper"> Click on a muscle group to see suggested exercises. </p>
 
-    <button id="toggleViewBtn" class="btn btn-outline" style="margin-bottom:12px;">
-      Show Back View
-    </button>
+        <div class="body-diagram">
+          <!-- FRONT -->
+          <svg id="frontView" viewBox="0 0 200 400" width="200" height="400">
+            <rect id="chest" x="70" y="60" width="60" height="40" fill="#e57373" stroke="#333" />
+            <rect id="biceps" x="40" y="60" width="20" height="60" fill="#ffeb3b" stroke="#333" />
+            <rect id="biceps2" x="140" y="60" width="20" height="60" fill="#ffeb3b" stroke="#333" />
+            <rect id="abs" x="81" y="110" width="40" height="60" fill="#81c784" stroke="#333" />
+            <rect id="quadsL" x="70" y="180" width="30" height="100" fill="#64b5f6" stroke="#333" />
+            <rect id="quadsR" x="100" y="180" width="30" height="100" fill="#64b5f6" stroke="#333" />
+          </svg>
 
-    <div class="body-diagram">
-      <!-- FRONT VIEW -->
-      <svg id="frontView" viewBox="0 0 200 400" width="200" height="400">
-        <!-- Chest -->
-        <rect id="chest" x="70" y="60" width="60" height="40" fill="#e57373" stroke="#333" />
-        <!-- Biceps -->
-        <rect id="biceps" x="40" y="60" width="20" height="60" fill="#ffeb3b" stroke="#333" />
-        <rect id="biceps2" x="140" y="60" width="20" height="60" fill="#ffeb3b" stroke="#333" />
-        <!-- Abs -->
-        <rect id="abs" x="90" y="110" width="40" height="60" fill="#81c784" stroke="#333" />
-        <!-- Quads -->
-        <rect id="quadsL" x="70" y="180" width="30" height="100" fill="#64b5f6" stroke="#333" />
-        <rect id="quadsR" x="100" y="180" width="30" height="100" fill="#64b5f6" stroke="#333" />
-      </svg>
+          <!-- BACK -->
+          <svg id="backView" viewBox="0 0 200 400" width="200" height="400" style="display:none;">
+            <rect id="traps" x="70" y="40" width="60" height="40" fill="#f06292" stroke="#333" />
+            <rect id="deltsL" x="40" y="60" width="30" height="40" fill="#ff9800" stroke="#333" />
+            <rect id="deltsR" x="130" y="60" width="30" height="40" fill="#ff9800" stroke="#333" />
+            <rect id="lats" x="70" y="80" width="60" height="60" fill="#4db6ac" stroke="#333" />
+            <rect id="glutes" x="80" y="150" width="40" height="40" fill="#9575cd" stroke="#333" />
+            <rect id="hamsL" x="70" y="190" width="30" height="100" fill="#7986cb" stroke="#333" />
+            <rect id="hamsR" x="100" y="190" width="30" height="100" fill="#7986cb" stroke="#333" />
+          </svg>
+        </div>
 
-      <!-- BACK VIEW (hidden by default) -->
-      <svg id="backView" viewBox="0 0 200 400" width="200" height="400" style="display:none;">
-        <!-- Trapezius -->
-        <rect id="traps" x="70" y="40" width="60" height="40" fill="#f06292" stroke="#333" />
-        <!-- Delts -->
-        <rect id="deltsL" x="40" y="60" width="30" height="40" fill="#ff9800" stroke="#333" />
-        <rect id="deltsR" x="130" y="60" width="30" height="40" fill="#ff9800" stroke="#333" />
-        <!-- Lats -->
-        <rect id="lats" x="70" y="80" width="60" height="60" fill="#4db6ac" stroke="#333" />
-        <!-- Glutes -->
-        <rect id="glutes" x="80" y="150" width="40" height="40" fill="#9575cd" stroke="#333" />
-        <!-- Hamstrings -->
-        <rect id="hamsL" x="70" y="190" width="30" height="100" fill="#7986cb" stroke="#333" />
-        <rect id="hamsR" x="100" y="190" width="30" height="100" fill="#7986cb" stroke="#333" />
-      </svg>
-    </div>
+        <button id="toggleViewBtn" class="btn btn-outline" style="margin-bottom:12px;"> Show Back View </button>
 
-    <div id="muscleInfo" class="muscle-info card" style="margin-top:16px; display:none;">
-      <h3 id="muscleName"></h3>
-      <ul id="muscleExercises"></ul>
-    </div>
-  </section>
-</template>
-
-
-
-<!-- Chest Workouts Page -->
-<template id="chest-template">
-  <section class="card">
-    <h2>Chest Workouts</h2>
-    <div class="images-grid">
-
-      <a href="https://www.youtube.com/shorts/hWbUlkb5Ms4" target="_blank">
-        <img src="Images/chest/Bench Press.PNG" alt="Bench Press">
-      </a>
-      <a href="https://www.youtube.com/shorts/4yKLxOsrGfg" target="_blank">
-        <img src="Images/chest/Close-Grip Bench Press.PNG" alt="Close-Grip Bench Press">
-      </a>
-      <a href="https://www.youtube.com/shorts/NQNWLYJTtHA" target="_blank">
-        <img src="Images/chest/Wide-Grip Bench Press.PNG" alt="Wide-Grip Bench Press">
-      </a>
-      <a href="https://www.youtube.com/shorts/8fXfwG4ftaQ" target="_blank">
-        <img src="Images/chest/Incline Bench Press.PNG" alt="Incline Bench Press">
-      </a>
-      <a href="https://www.youtube.com/shorts/a-UFQE4oxWY" target="_blank">
-        <img src="Images/chest/Decline Barbell Press.PNG" alt="Decline Barbell Press">
-      </a>
-      <a href="https://www.youtube.com/shorts/Gruq177Psnk" target="_blank">
-        <img src="Images/chest/Incline Dumbbell Bench Press.PNG" alt="Incline Dumbbell Bench Press">
-      </a>
-      <a href="https://www.youtube.com/shorts/5JiZFjxyoJQ" target="_blank">
-        <img src="Images/chest/Decline Dumbbell Bench Press.PNG" alt="Decline Dumbbell Bench Press">
-      </a>
-      <a href="https://www.youtube.com/shorts/WbCEvFA0NJs" target="_blank">
-        <img src="Images/chest/Dumbbell Chest Press.PNG" alt="Dumbbell Chest Press">
-      </a>
-      <a href="https://www.youtube.com/shorts/rk8YayRoTRQ" target="_blank">
-        <img src="Images/chest/Dumbbell Chest Flyes.PNG" alt="Dumbbell Chest Flyes">
-      </a>
-      <a href="https://www.youtube.com/shorts/xYExAgLt_4I" target="_blank">
-        <img src="Images/chest/Machine Fly.PNG" alt="Machine Fly">
-      </a>
-      <a href="https://www.youtube.com/shorts/Qu7-ceCvq7w" target="_blank">
-        <img src="Images/chest/Machine Chest Press.PNG" alt="Machine Chest Press">
-      </a>
-      <a href="https://www.youtube.com/shorts/Datv2L6t3-4" target="_blank">
-        <img src="Images/chest/Dumbbell Pullover.PNG" alt="Dumbbell Pullover">
-      </a>
-      <a href="https://www.youtube.com/shorts/y4RJDSOBEl8" target="_blank">
-        <img src="Images/chest/Cable Flyes.PNG" alt="Cable Flyes">
-      </a>
-      <a href="https://www.youtube.com/shorts/-Eq_GScOGOE" target="_blank">
-        <img src="Images/chest/Incline Cable Flyes.PNG" alt="Incline Cable Flyes">
-      </a>
-      <a href="https://www.youtube.com/shorts/WIErn7-YvYQ" target="_blank">
-        <img src="Images/chest/Cable Crossover (High to Low).PNG" alt="Cable Crossover (High to Low)">
-      </a>
-    </div>
-  </section>
-</template>
-
-<!-- TEMPLATE -->
-<template id="biceps-template">
-  <section class="card">
-    <h2>Biceps Workouts</h2>
-    <div class="images-grid">
-
-      <a href="https://www.youtube.com/shorts/oLyP6sORFOc" target="_blank">
-        <img src="Images/biceps/Standing Dumbbell Curls.PNG" alt="Standing Dumbbell Curls">
-      </a>
-      <a href="https://www.youtube.com/shorts/FHY_2t7R714" target="_blank">
-        <img src="Images/biceps/Alternating Dumbbell Curls.PNG" alt="Alternating Dumbbell Curls">
-      </a>
-      <a href="https://www.youtube.com/shorts/vm0zV_WQerE" target="_blank">
-        <img src="Images/biceps/Hammer Curls.PNG" alt="Hammer Curls">
-      </a>
-      <a href="https://www.youtube.com/shorts/EjUnEEfTSEY" target="_blank">
-        <img src="Images/biceps/Concentration Curls.PNG" alt="Concentration Curls">
-      </a>
-      <a href="https://www.youtube.com/shorts/fXFN8_1Bh6k" target="_blank">
-        <img src="Images/biceps/Incline Dumbbell Curls.PNG" alt="Incline Dumbbell Curls">
-      </a>
-      <a href="https://www.youtube.com/shorts/5Go_uOTnFl0" target="_blank">
-        <img src="Images/biceps/Zottman Curls.PNG" alt="Zottman Curls">
-      </a>
-      <a href="https://www.youtube.com/shorts/qmQkt1Y-FX8" target="_blank">
-        <img src="Images/biceps/Cross-Body (Diagonal) Hammer Curls.PNG" alt="Cross-Body (Diagonal) Hammer Curls">
-      </a>
-      <a href="https://www.youtube.com/shorts/16v_0ET03Oo" target="_blank">
-        <img src="Images/biceps/Seated Alternating Dumbbell Curls.PNG" alt="Seated Alternating Dumbbell Curls">
-      </a>
-      <a href="https://www.youtube.com/shorts/54x2WF1_Suc" target="_blank">
-        <img src="Images/biceps/Barbell Curls.PNG" alt="Barbell Curls">
-      </a>
-      <a href="https://www.youtube.com/shorts/KFinlAT6aEo" target="_blank">
-        <img src="Images/biceps/EZ Bar Curls.PNG" alt="EZ Bar Curls">
-      </a>
-      <a href="https://www.youtube.com/shorts/ZG2n5IcYIcY" target="_blank">
-        <img src="Images/biceps/Reverse Curls (EZ or Barbell).PNG" alt="Reverse Curls (EZ or Barbell)">
-      </a>
-      <a href="https://www.youtube.com/shorts/pgeSaAKOXRs" target="_blank">
-        <img src="Images/biceps/Wide-Grip Barbell Curls.PNG" alt="Wide-Grip Barbell Curls">
-      </a>
-      <a href="https://www.youtube.com/shorts/a6ZJAmhCfjU" target="_blank">
-        <img src="Images/biceps/Close-Grip Barbell Curls.PNG" alt="Close-Grip Barbell Curls">
-      </a>
-      <a href="https://www.youtube.com/shorts/CrbTqNOlFgE" target="_blank">
-        <img src="Images/biceps/Cable Bicep Curls.PNG" alt="Cable Bicep Curls">
-      </a>
-      <a href="https://www.youtube.com/shorts/grFE5bhFmiQ" target="_blank">
-        <img src="Images/biceps/Overhead Cable Curls.PNG" alt="Overhead Cable Curls">
-      </a>
-    </div>
-  </section>
-</template>
-
-<template id="biceps2-template">
-  <section class="card">
-    <h2>Biceps Workouts</h2>
-    <div class="images-grid">
-
-      <a href="https://www.youtube.com/shorts/oLyP6sORFOc" target="_blank">
-        <img src="Images/biceps/Standing Dumbbell Curls.PNG" alt="Standing Dumbbell Curls">
-      </a>
-      <a href="https://www.youtube.com/shorts/FHY_2t7R714" target="_blank">
-        <img src="Images/biceps/Alternating Dumbbell Curls.PNG" alt="Alternating Dumbbell Curls">
-      </a>
-      <a href="https://www.youtube.com/shorts/vm0zV_WQerE" target="_blank">
-        <img src="Images/biceps/Hammer Curls.PNG" alt="Hammer Curls">
-      </a>
-      <a href="https://www.youtube.com/shorts/EjUnEEfTSEY" target="_blank">
-        <img src="Images/biceps/Concentration Curls.PNG" alt="Concentration Curls">
-      </a>
-      <a href="https://www.youtube.com/shorts/fXFN8_1Bh6k" target="_blank">
-        <img src="Images/biceps/Incline Dumbbell Curls.PNG" alt="Incline Dumbbell Curls">
-      </a>
-      <a href="https://www.youtube.com/shorts/5Go_uOTnFl0" target="_blank">
-        <img src="Images/biceps/Zottman Curls.PNG" alt="Zottman Curls">
-      </a>
-      <a href="https://www.youtube.com/shorts/qmQkt1Y-FX8" target="_blank">
-        <img src="Images/biceps/Cross-Body (Diagonal) Hammer Curls.PNG" alt="Cross-Body (Diagonal) Hammer Curls">
-      </a>
-      <a href="https://www.youtube.com/shorts/16v_0ET03Oo" target="_blank">
-        <img src="Images/biceps/Seated Alternating Dumbbell Curls.PNG" alt="Seated Alternating Dumbbell Curls">
-      </a>
-      <a href="https://www.youtube.com/shorts/54x2WF1_Suc" target="_blank">
-        <img src="Images/biceps/Barbell Curls.PNG" alt="Barbell Curls">
-      </a>
-      <a href="https://www.youtube.com/shorts/KFinlAT6aEo" target="_blank">
-        <img src="Images/biceps/EZ Bar Curls.PNG" alt="EZ Bar Curls">
-      </a>
-      <a href="https://www.youtube.com/shorts/ZG2n5IcYIcY" target="_blank">
-        <img src="Images/biceps/Reverse Curls (EZ or Barbell).PNG" alt="Reverse Curls (EZ or Barbell)">
-      </a>
-      <a href="https://www.youtube.com/shorts/pgeSaAKOXRs" target="_blank">
-        <img src="Images/biceps/Wide-Grip Barbell Curls.PNG" alt="Wide-Grip Barbell Curls">
-      </a>
-      <a href="https://www.youtube.com/shorts/a6ZJAmhCfjU" target="_blank">
-        <img src="Images/biceps/Close-Grip Barbell Curls.PNG" alt="Close-Grip Barbell Curls">
-      </a>
-      <a href="https://www.youtube.com/shorts/CrbTqNOlFgE" target="_blank">
-        <img src="Images/biceps/Cable Bicep Curls.PNG" alt="Cable Bicep Curls">
-      </a>
-      <a href="https://www.youtube.com/shorts/grFE5bhFmiQ" target="_blank">
-        <img src="Images/biceps/Overhead Cable Curls.PNG" alt="Overhead Cable Curls">
-      </a>
-    </div>
-  </section>
-</template>
-
-<template id="abs-template">
-  <section class="card">
-    <h2>Abs Workouts</h2>
-    <div class="images-grid">
-
-      <a href="https://www.youtube.com/shorts/Yg6GsyZoqK0" target="_blank">
-        <img src="Images/abs/Weighted Crunches.PNG" alt="Weighted Crunches">
-      </a>
-      <a href="https://www.youtube.com/shorts/aRUMRbl7KS4" target="_blank">
-        <img src="Images/abs/Russian Twists.PNG" alt="Russian Twists">
-      </a>
-      <a href="https://www.youtube.com/shorts/kqr_IjiUuyY" target="_blank">
-        <img src="Images/abs/Dumbbell Side Bend.PNG" alt="Dumbbell Side Bend">
-      </a>
-      <a href="https://www.youtube.com/shorts/MXOK5F6SKXQ" target="_blank">
-        <img src="Images/abs/Weighted Sit-Ups.PNG" alt="Weighted Sit-Ups">
-      </a>
-      <a href="https://www.youtube.com/shorts/eeJ_CYqSoT4" target="_blank">
-        <img src="Images/abs/Crunches.PNG" alt="Crunches">
-      </a>
-      <a href="https://www.youtube.com/shorts/JkTk8irSNKE" target="_blank">
-        <img src="Images/abs/Reverse Crunches.PNG" alt="Reverse Crunches">
-      </a>
-      <a href="https://www.youtube.com/shorts/CakPX7X-mSw" target="_blank">
-        <img src="Images/abs/Bicycle Crunches.PNG" alt="Bicycle Crunches">
-      </a>
-      <a href="https://www.youtube.com/shorts/FijNSgahpz0" target="_blank">
-        <img src="Images/abs/Leg Raises.PNG" alt="Leg Raises">
-      </a>
-      <a href="https://www.youtube.com/shorts/tPmybsDX8ZY" target="_blank">
-        <img src="Images/abs/Flutter Kicks.PNG" alt="Flutter Kicks">
-      </a>
-      <a href="https://www.youtube.com/shorts/20P7MU4Oaec" target="_blank">
-        <img src="Images/abs/Toe Touches.PNG" alt="Toe Touches">
-      </a>
-      <a href="https://www.youtube.com/shorts/dqjZ6BGhY9s" target="_blank">
-        <img src="Images/abs/Mountain Climbers.PNG" alt="Mountain Climbers">
-      </a>
-      <a href="https://www.youtube.com/shorts/Wks3wpNJqTg" target="_blank">
-        <img src="Images/abs/V-Ups.PNG" alt="V-Ups">
-      </a>
-      <a href="https://www.youtube.com/shorts/xe2MXatLTUw" target="_blank">
-        <img src="Images/abs/Plank.PNG" alt="Plank">
-      </a>
-      <a href="https://www.youtube.com/shorts/BFOyHDlY2UE" target="_blank">
-        <img src="Images/abs/Side Plank.PNG" alt="Side Plank">
-      </a>
-      <a href="https://www.youtube.com/shorts/gccQ1hMX46U" target="_blank">
-        <img src="Images/abs/Plank with Shoulder Tap.PNG" alt="Plank with Shoulder Tap">
-      </a>
-    </div>
-  </section>
-</template>
-
-<template id="quadsL-template">
-  <section class="card">
-    <h2>Quads Workouts</h2>
-    <div class="images-grid">
-
-      <a href="https://www.youtube.com/shorts/S9iWwaqbD3Q" target="_blank">
-        <img src="Images/quads/Barbell Back Squat.PNG" alt="Barbell Back Squat">
-      </a>
-      <a href="https://www.youtube.com/shorts/_qv0m3tPd3s" target="_blank">
-        <img src="Images/quads/Front Squat.PNG" alt="Front Squat">
-      </a>
-      <a href="https://www.youtube.com/shorts/g9i05umL5vc" target="_blank">
-        <img src="Images/quads/Hack Squat.PNG" alt="Hack Squat">
-      </a>
-      <a href="https://www.youtube.com/shorts/xtMpMCCzPrU" target="_blank">
-        <img src="Images/quads/Zercher Squat.PNG" alt="Zercher Squat">
-      </a>
-      <a href="https://www.youtube.com/shorts/Go4tSkrFIL8" target="_blank">
-        <img src="Images/quads/Box Squat.PNG" alt="Box Squat">
-      </a>
-      <a href="https://www.youtube.com/shorts/lRYBbchqxtI" target="_blank">
-        <img src="Images/quads/Dumbbell Goblet Squat.PNG" alt="Dumbbell Goblet Squat">
-      </a>
-      <a href="https://www.youtube.com/shorts/sw4MzpC8l58" target="_blank">
-        <img src="Images/quads/Dumbbell Split Squat.PNG" alt="Dumbbell Split Squat">
-      </a>
-      <a href="https://www.youtube.com/shorts/or1frhkjBDc" target="_blank">
-        <img src="Images/quads/Bulgarian Split Squat.PNG" alt="Bulgarian Split Squat">
-      </a>
-      <a href="https://www.youtube.com/shorts/8q9LVgN2RD4" target="_blank">
-        <img src="Images/quads/Dumbbell Step-Ups.PNG" alt="Dumbbell Step-Ups">
-      </a>
-      <a href="https://www.youtube.com/shorts/0hw86JiWjCM" target="_blank">
-        <img src="Images/quads/Dumbbell Front Squat.PNG" alt="Dumbbell Front Squat">
-      </a>
-      <a href="https://www.youtube.com/shorts/EotSw18oR9w" target="_blank">
-        <img src="Images/quads/Leg Press.PNG" alt="Leg Press">
-      </a>
-      <a href="https://www.youtube.com/shorts/iQ92TuvBqRo" target="_blank">
-        <img src="Images/quads/Leg Extensions.PNG" alt="Leg Extensions">
-      </a>
-      <a href="https://www.youtube.com/shorts/SuTI-n84ezA" target="_blank">
-        <img src="Images/quads/Cable Pull Through.PNG" alt="Cable Pull Through">
-      </a>
-      <a href="https://www.youtube.com/shorts/f4ubaNbsq0Y" target="_blank">
-        <img src="Images/quads/Sissy Squat.PNG" alt="Sissy Squat">
-      </a>
-      <a href="https://www.youtube.com/shorts/NO-6L6Blneg" target="_blank">
-        <img src="Images/quads/Smith Machine Front Squat.PNG" alt="Smith Machine Front Squat">
-      </a>
-    </div>
-  </section>
-</template>
-
-<template id="quadsR-template">
-  <section class="card">
-    <h2>Quads Workouts</h2>
-    <div class="images-grid">
-
-      <a href="https://www.youtube.com/shorts/S9iWwaqbD3Q" target="_blank">
-        <img src="Images/quads/Barbell Back Squat.PNG" alt="Barbell Back Squat">
-      </a>
-      <a href="https://www.youtube.com/shorts/_qv0m3tPd3s" target="_blank">
-        <img src="Images/quads/Front Squat.PNG" alt="Front Squat">
-      </a>
-      <a href="https://www.youtube.com/shorts/g9i05umL5vc" target="_blank">
-        <img src="Images/quads/Hack Squat.PNG" alt="Hack Squat">
-      </a>
-      <a href="https://www.youtube.com/shorts/xtMpMCCzPrU" target="_blank">
-        <img src="Images/quads/Zercher Squat.PNG" alt="Zercher Squat">
-      </a>
-      <a href="https://www.youtube.com/shorts/Go4tSkrFIL8" target="_blank">
-        <img src="Images/quads/Box Squat.PNG" alt="Box Squat">
-      </a>
-      <a href="https://www.youtube.com/shorts/lRYBbchqxtI" target="_blank">
-        <img src="Images/quads/Dumbbell Goblet Squat.PNG" alt="Dumbbell Goblet Squat">
-      </a>
-      <a href="https://www.youtube.com/shorts/sw4MzpC8l58" target="_blank">
-        <img src="Images/quads/Dumbbell Split Squat.PNG" alt="Dumbbell Split Squat">
-      </a>
-      <a href="https://www.youtube.com/shorts/or1frhkjBDc" target="_blank">
-        <img src="Images/quads/Bulgarian Split Squat.PNG" alt="Bulgarian Split Squat">
-      </a>
-      <a href="https://www.youtube.com/shorts/8q9LVgN2RD4" target="_blank">
-        <img src="Images/quads/Dumbbell Step-Ups.PNG" alt="Dumbbell Step-Ups">
-      </a>
-      <a href="https://www.youtube.com/shorts/0hw86JiWjCM" target="_blank">
-        <img src="Images/quads/Dumbbell Front Squat.PNG" alt="Dumbbell Front Squat">
-      </a>
-      <a href="https://www.youtube.com/shorts/EotSw18oR9w" target="_blank">
-        <img src="Images/quads/Leg Press.PNG" alt="Leg Press">
-      </a>
-      <a href="https://www.youtube.com/shorts/iQ92TuvBqRo" target="_blank">
-        <img src="Images/quads/Leg Extensions.PNG" alt="Leg Extensions">
-      </a>
-      <a href="https://www.youtube.com/shorts/SuTI-n84ezA" target="_blank">
-        <img src="Images/quads/Cable Pull Through.PNG" alt="Cable Pull Through">
-      </a>
-      <a href="https://www.youtube.com/shorts/f4ubaNbsq0Y" target="_blank">
-        <img src="Images/quads/Sissy Squat.PNG" alt="Sissy Squat">
-      </a>
-      <a href="https://www.youtube.com/shorts/NO-6L6Blneg" target="_blank">
-        <img src="Images/quads/Smith Machine Front Squat.PNG" alt="Smith Machine Front Squat">
-      </a>
-    </div>
-  </section>
-</template>
-
-<!--- BACK VIEW -->
-
-<template id="traps-template">
-  <section class="card">
-    <h2>Traps Workouts</h2>
-    <a href="https://www.youtube.com/shorts/hWbUlkb5Ms4" target="_blank">
-        <img src="/Images/Bench Press.PNG" alt="Bench Press">
-    </a>
-    <!-- put your biceps exercise images + links -->
-  </section>
-</template>
-
-<template id="deltsL-template">
-  <section class="card">
-    <h2>Delts Workouts</h2>
-    <a href="https://www.youtube.com/shorts/hWbUlkb5Ms4" target="_blank">
-        <img src="/Images/Bench Press.PNG" alt="Bench Press">
-    </a>
-    <!-- put your biceps exercise images + links -->
-  </section>
-</template>
-
-<template id="deltsR-template">
-  <section class="card">
-    <h2>Delts Workouts</h2>
-    <a href="https://www.youtube.com/shorts/hWbUlkb5Ms4" target="_blank">
-        <img src="/Images/Bench Press.PNG" alt="Bench Press">
-    </a>
-    <!-- put your biceps exercise images + links -->
-  </section>
-</template>
-
-<template id="lats-template">
-  <section class="card">
-    <h2>Lats Workouts</h2>
-    <a href="https://www.youtube.com/shorts/hWbUlkb5Ms4" target="_blank">
-        <img src="/Images/Bench Press.PNG" alt="Bench Press">
-    </a>
-    <!-- put your biceps exercise images + links -->
-  </section>
-</template>
-
-<template id="glutes-template">
-  <section class="card">
-    <h2>Glutes Workouts</h2>
-    <a href="https://www.youtube.com/shorts/hWbUlkb5Ms4" target="_blank">
-        <img src="/Images/Bench Press.PNG" alt="Bench Press">
-    </a>
-    <!-- put your biceps exercise images + links -->
-  </section>
-</template>
-
-<template id="hamsL-template">
-  <section class="card">
-    <h2>Hamstring Workouts</h2>
-    <a href="https://www.youtube.com/shorts/hWbUlkb5Ms4" target="_blank">
-        <img src="/Images/Bench Press.PNG" alt="Bench Press">
-    </a>
-    <!-- put your biceps exercise images + links -->
-  </section>
-</template>
-
-<template id="hamsR-template">
-  <section class="card">
-    <h2>Hamstring Workouts</h2>
-    <a href="https://www.youtube.com/shorts/hWbUlkb5Ms4" target="_blank">
-        <img src="/Images/Bench Press.PNG" alt="Bench Press">
-    </a>
-    <!-- put your biceps exercise images + links -->
-  </section>
-</template>
+        <div id="muscleInfo" class="muscle-info card" style="margin-top:16px; display:none;">
+          <h3 id="muscleName"></h3>
+          <ul id="muscleExercises"></ul>
+        </div>
+      </section>
+    </template>
 
     <!-- History -->
     <template id="history-template">
