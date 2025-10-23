@@ -137,29 +137,163 @@ function generatePlan({level='beginner', days=3, goal='recomp', equipment=[], ad
 
   return { meta:{ level, days, goal, week, adherence, rpe }, plan: daysOut };
 }
+// --- Supabase-backed store ---
+const db = {
+  // AUTH
+  async session() {
+    const { data } = await supabase.auth.getSession();
+    return data.session || null;
+  },
+  async user() {
+    const { data } = await supabase.auth.getUser();
+    return data.user || null;
+  },
+  async register({ username, email, password }) {
+    const { data, error } = await supabase.auth.signUp({
+      email, password, options: { data: { username } }
+    });
+    if (error) throw error;
+    // create profile row
+    const { error: pErr } = await supabase.from('profiles').insert({
+      id: data.user.id, username, units: 'lbs', weekly_goal: 3
+    });
+    if (pErr) throw pErr;
+    return data.user;
+  },
+  async login({ email, password }) {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    return data.user;
+  },
+  async logout() { await supabase.auth.signOut(); },
 
-// ========================================
-// STORAGE & STATE
-// ========================================
-const USERS_KEY = "users";
-const CURRENT_USER_KEY = "currentUser";
-const LOGS_KEY = "neurofit.logs";
-const SETTINGS_KEY = "neurofit.settings";
-const PLAN_KEY = "neurofit.workoutPlan";
+  // SETTINGS (profiles)
+  async getSettings() {
+    const u = await db.user();
+    if (!u) return { units: 'lbs', weeklyGoal: 3 };
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('units, weekly_goal')
+      .eq('id', u.id)
+      .single();
+    if (error || !data) return { units: 'lbs', weeklyGoal: 3 };
+    return { units: data.units, weeklyGoal: data.weekly_goal };
+  },
+  async setSettings({ units, weeklyGoal }) {
+    const u = await db.user();
+    if (!u) throw new Error('Not authed');
+    const { error } = await supabase
+      .from('profiles')
+      .update({ units, weekly_goal: weeklyGoal })
+      .eq('id', u.id);
+    if (error) throw error;
+  },
 
-const store = {
-    getUsers(){ return JSON.parse(localStorage.getItem(USERS_KEY) || "{}"); },
-    setUsers(u){ localStorage.setItem(USERS_KEY, JSON.stringify(u)); },
-    getCurrentUser(){ const r = localStorage.getItem(CURRENT_USER_KEY); return r ? JSON.parse(r) : null; },
-    setCurrentUser(u){ localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(u)); },
-    clearCurrentUser(){ localStorage.removeItem(CURRENT_USER_KEY); },
-    getLogs(){ return JSON.parse(localStorage.getItem(LOGS_KEY) || "[]"); },
-    setLogs(arr){ localStorage.setItem(LOGS_KEY, JSON.stringify(arr)); },
-    getSettings(){ return JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}"); },
-    setSettings(obj){ localStorage.setItem(SETTINGS_KEY, JSON.stringify(obj)); },
-    clearData(){ localStorage.removeItem(LOGS_KEY); localStorage.removeItem(SETTINGS_KEY); },
-    getPlan(){ return JSON.parse(localStorage.getItem(PLAN_KEY) || "null"); },
-    setPlan(obj){ localStorage.setItem(PLAN_KEY, JSON.stringify(obj)); }
+  // WORKOUT LOGS
+  async addLog({ date, exercise, sets, reps, weight, notes }) {
+    const u = await db.user();
+    if (!u) throw new Error('Not authed');
+    const { error } = await supabase.from('workout_logs').insert({
+      user_id: u.id,
+      date,
+      exercise_id: null,           // optional if you have exercises table
+      exercise_name: exercise,     // denormalized for quick lists
+      sets, reps, weight, notes
+    });
+    if (error) throw error;
+    await db.pushActivity(`Logged ${exercise} (${sets}×${reps} @ ${weight})`);
+  },
+  async deleteLog(id) {
+    const u = await db.user();
+    const { error } = await supabase
+      .from('workout_logs')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', u.id);
+    if (error) throw error;
+  },
+  async listLogs({ onDate, text, sort = 'newest', limit = 200, offset = 0 } = {}) {
+    let q = supabase.from('workout_logs')
+      .select('id,date,exercise_name,sets,reps,weight,notes,volume,created_at')
+      .order('date', { ascending: false })
+      .order('created_at', { ascending: false });
+
+    if (onDate) q = q.eq('date', onDate);
+    if (text)  q = q.ilike('exercise_name', `%${text}%`);
+
+    if (sort === 'volume') q = q.order('volume', { ascending: false });
+    if (sort === 'oldest') q = q.order('date', { ascending: true });
+
+    const { data, error } = await q.range(offset, offset + limit - 1);
+    if (error) throw error;
+    return data;
+  },
+
+  // DASHBOARD STATS
+  async weekStats({ startISO, endISO }) {
+    const { data, error } = await supabase
+      .from('workout_logs')
+      .select('date,sets,reps,weight')
+      .gte('date', startISO)
+      .lte('date', endISO);
+    if (error) throw error;
+    const days = new Set();
+    let volume = 0;
+    for (const r of data) {
+      days.add(r.date);
+      volume += r.sets * r.reps * r.weight;
+    }
+    return { workouts: days.size, volume };
+  },
+
+  // PROGRESS
+  async progress() {
+    // Use a materialized view or compute on the fly
+    const { data, error } = await supabase
+      .from('exercise_stats') // if you created this view; else compute client-side from listLogs()
+      .select('exercise_name,total_volume,max_weight,best_1rm,last_date')
+      .order('total_volume', { ascending: false });
+    if (error) return null;   // fallback path if view doesn’t exist
+    return data;
+  },
+
+  // PLANS
+  async savePlan({ weekOfISO, meta, plan }) {
+    const u = await db.user();
+    const { error } = await supabase.from('weekly_plans').upsert({
+      user_id: u.id,
+      week_of: weekOfISO,
+      level: meta.level,
+      days: meta.days,
+      goal: meta.goal,
+      progression: (meta.rpe <= 7 && meta.adherence === 'yes') ? 1 : (meta.rpe >= 9 ? -1 : 0),
+      equipment: meta.equipment || [],
+      plan
+    }, { onConflict: 'user_id,week_of' });
+    if (error) throw error;
+  },
+  async loadPlan(weekOfISO) {
+    const { data, error } = await supabase
+      .from('weekly_plans')
+      .select('plan, level, days, goal, progression, equipment, week_of, created_at')
+      .eq('week_of', weekOfISO)
+      .maybeSingle();
+    if (error) throw error;
+    return data;
+  },
+
+  // ACTIVITY FEED
+  async pushActivity(message) {
+    const u = await db.user();
+    if (!u) return;
+    await supabase.from('activity_feed').insert({ user_id: u.id, message });
+  },
+  subscribeActivity(handler) {
+    return supabase
+      .channel('activity')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'activity_feed' }, (payload) => handler(payload.new))
+      .subscribe();
+  }
 };
 
 function computeStreak(){
@@ -232,13 +366,16 @@ function startOfWeek(d = new Date()){
     return x;
 }
 
-function formatUnits(w){
-    const units = store.getSettings().units || "lbs";
-    return `${w} ${units}`;
+function formatUnits formatUnitsAsync(w){
+    const s = await db.getSettings().units || "lbs";
+    return `${w} ${s.units || 'lbs'}`;
 }
 
-function isAuthed(){ return !!store.getCurrentUser(); }
-function guard(){ if (!isAuthed()){ location.hash = "#/login"; return false; } return true; }
+async function isAuthed(){ return !!(await db.session()); }
+async function guard(){
+  if (!(await isAuthed())) { location.hash = "#/login"; return false; }
+  return true;
+}
 
 // ========================================
 // ROUTER
@@ -255,111 +392,116 @@ const routes = {
     "#/generatePlan": renderGeneratePlan
 };
 
-function render(){
-    const hash = location.hash || "#/login";
-    const routeKey = hash.split("?")[0];
-    const publicRoutes = ["#/login", "#/register"];
-    const isPublic = publicRoutes.includes(routeKey);
+const routes = {
+  "#/login": renderLogin,
+  "#/register": renderRegister,
+  "#/home": renderHome,
+  "#/workouts/log": renderWorkoutLog,
+  "#/workouts/diagram": renderBodyDiagram,
+  "#/workouts/history": renderHistory,
+  "#/progress": renderProgress,
+  "#/settings": renderSettings,
+  "#/generatePlan": renderGeneratePlan
+};
 
-    if (!isPublic && !isAuthed()){ location.hash = "#/login"; return; }
-    (routes[routeKey] || routes["#/home"])();
+async function render(){
+  const hash = location.hash || "#/login";
+  const routeKey = hash.split("?")[0];
+  const publicRoutes = ["#/login", "#/register"];
+  const isPublic = publicRoutes.includes(routeKey);
 
-    updateChrome();
-    updateActiveNav(routeKey);
+  if (!isPublic && !(await isAuthed())) { location.hash = "#/login"; return; }
+  const handler = routes[routeKey] || renderHome;
+  await handler();                      // now async
+  await updateChrome();
+  updateActiveNav(routeKey);
+}
+
+async function updateChrome(){
+  const authed = !!(await db.session());
+  const logoutBtn = $("#logoutBtn");
+  const settingsBtn = $("#settingsBtn");
+  if (authed) { logoutBtn.classList.remove("hidden"); settingsBtn.classList.remove("hidden"); }
+  else { logoutBtn.classList.add("hidden"); settingsBtn.classList.add("hidden"); }
+  $("#shell").style.display = authed ? "grid" : "block";
+  $("#sidebar").style.display = authed ? "block" : "none";
+}
+
+window.addEventListener("hashchange", () => render());
+window.addEventListener("load", async () => {
+  if (!location.hash) {
+    const authed = !!(await db.session());
+    location.hash = authed ? "#/home" : "#/login";
+  }
+  render();
+});
+
 }
 
 // ========================================
 // RENDERERS
 // ========================================
-function renderLogin(){
-    document.body.classList.add("auth");
-    mount("login-template");
-    $("#sidebar")?.classList.remove("open");
+on(form, "submit", async (e) => {
+  e.preventDefault();
+  const payload = {email: $("#loginEmail").value.trim().toLowerCase(), password: $("#loginPassword").value};
+  const v = validateLogin(payload);
+  $("#loginEmailErr").textContent = v.errors.email || "";
+  $("#loginPasswordErr").textContent = v.errors.password || "";
+  if (!v.ok) return;
 
-    const form = $("#loginForm");
-    const msg = $("#loginMsg");
+  try {
+    await db.login(payload);
+    msg.className = "alert success";
+    msg.textContent = "Login successful. Redirecting…";
+    Notify.success("Welcome back!", "Let's make progress today.");
+    document.body.classList.remove("auth");
+    setTimeout(() => (location.hash = "#/home"), 200);
+  } catch (err) {
+    msg.className = "alert error";
+    msg.textContent = err.message || "Invalid email or password.";
+  }
+});
 
-    on(form, "submit", (e) => {
-        e.preventDefault();
-        const payload = {email: $("#loginEmail").value.trim().toLowerCase(), password: $("#loginPassword").value};
-        const v = validateLogin(payload);
-        $("#loginEmailErr").textContent = v.errors.email || "";
-        $("#loginPasswordErr").textContent = v.errors.password || "";
-        if (!v.ok) return;
-
-        const users = store.getUsers();
-        const user = users[payload.email];
-        if (user && user.password === payload.password){
-            store.setCurrentUser({ username: user.username, email: payload.email });
-            msg.className = "alert success";
-            msg.textContent = "Login successful. Redirecting…";
-            Notify.success(`Welcome back, ${user.username}!`, `Let's make progress today.`);
-
-            const s = computeStreak();
-            const streakMsg = s === 0 ? "Streak: 0 Days - Start Today! 💪" : "Streak: " + s + " Day" + (s === 1 ? "" : "s");
-            Notify.info(streakMsg);
-
-            document.body.classList.remove("auth");
-            setTimeout(() => (location.hash = "#/home"), 200);
-        } else {
-            msg.className = "alert error";
-            msg.textContent = "Invalid Email or Password.";
-        }
-    });
 }
 
-function renderRegister(){
-    document.body.classList.add("auth");
-    mount("register-template");
-    $("#sidebar")?.classList.remove("open");
-    
-    const form = $("#regForm");
-    const msg = $("#regMsg");
-    const pw = $("#regPassword");
-    const meter = $("#pwMeter");
-    const meterFill = meter.querySelector(".meter-fill");
+on(form, "submit", async (e) => {
+  e.preventDefault();
+  const payload = { username: $("#regUsername").value, email: $("#regEmail").value.trim().toLowerCase(), password: pw.value };
+  const v = validateRegister(payload);
+  $("#regUsernameErr").textContent = v.errors.username || "";
+  $("#regEmailErr").textContent = v.errors.email || "";
+  $("#regPasswordErr").textContent = v.errors.password || "";
+  if (!v.ok) return;
 
-    on(pw, "input", () => {
-        const s = scorePassword(pw.value);
-        meter.className = `meter strength-${Math.max(1, s)}`;
-        meterFill.style.width = `${(s / 4) * 100}%`;
-    });
-    
-    on(form, "submit", (e) => {
-        e.preventDefault();
-        const payload = { username: $("#regUsername").value, email: $("#regEmail").value.trim().toLowerCase(), password: pw.value };
-        const v = validateRegister(payload);
-        $("#regUsernameErr").textContent = v.errors.username || "";
-        $("#regEmailErr").textContent = v.errors.email || "";
-        $("#regPasswordErr").textContent = v.errors.password || "";
-        if (!v.ok) return;
+  try {
+    await db.register(payload);
+    msg.className = "alert success";
+    msg.textContent = "Registration successful. Check your email to confirm, then log in.";
+    setTimeout(() => (location.hash = "#/login"), 800);
+  } catch (err) {
+    msg.className = "alert error";
+    msg.textContent = err.message || "Registration failed.";
+  }
+});
 
-        const users = store.getUsers();
-        if (users[payload.email]) {
-            msg.className = "alert error"; msg.textContent = "User already exists."; return;
-        }
-        
-        users[payload.email] = { username: payload.username, password: payload.password };
-        store.setUsers(users);
-        msg.className = "alert success";
-        msg.textContent = "Registration successful. You can log in now.";
-        setTimeout(() => (location.hash = "#/login"), 600);
-    });
 }
 
-function renderHome(){
-    if (!guard()) return;
+    async function renderHome(){
+    if (!await guard()) return;
     document.body.classList.remove("auth");
     const user = store.getCurrentUser();
     mount("home-template", { username: user.username });
     
-    const logs = store.getLogs();
+   
     const weekStart = startOfWeek(new Date());
-    const thisWeek = logs.filter(l => new Date(l.date) >= weekStart);
-    const workoutsCount = new Set(thisWeek.map(l => l.date)).size;
-    const volume = thisWeek.reduce((s, l) => s + l.sets * l.reps * l.weight, 0);
-    $("#statWorkouts").textContent = String(workoutsCount);
-    $("#statVolume").textContent = volume.toLocaleString();
+    const startISO = weekStart.toISOString().slice(0,10);
+    const end = new Date(weekStart); end.setDate(end.getDate() + 6);
+    const endISO = end.toISOString().slice(0,10);
+
+    const stats = await db.weekStats({ startISO, endISO });
+    $("#statWorkouts").textContent = String(stats.workouts);
+    $("#statVolume").textContent = stats.volume.toLocaleString();
+
     
     const list = $("#activityList");
     list.innerHTML = "";
@@ -387,25 +529,15 @@ function renderWorkoutLog(){
         err.textContent = ""; ok.textContent = "";
         
         const units = store.getSettings().units || "lbs";
-        const notesEl = $("#woNotes");
-        const payload = {
-            id: crypto.randomUUID(),
+        await db.addLog({
             date: $("#woDate").value || today,
             exercise: $("#woExercise").value.trim(),
             sets: +$("#woSets").value,
             reps: +$("#woReps").value,
             weight: +$("#woWeight").value,
-            notes: notesEl ? notesEl.value.trim() : "",
-            units,
-            createdAt: Date.now()
-        };
-        if (!payload.exercise || !payload.sets || !payload.reps) { err.textContent = "Please fill sets, reps, and exercise."; return; }
-        
-        const logs = store.getLogs();
-        logs.unshift(payload);
-        store.setLogs(logs);
-        
-        const details = `${payload.exercise}: ${payload.sets}×${payload.reps}${payload.weight ? ` @ ${formatUnits(payload.weight)}` : ""}`;
+            notes: notesEl ? notesEl.value.trim() : ""
+            });
+
         Notify.success(Notify.praise(), details, 4500);
         ok.textContent = "Workout saved!";
         form.reset();
@@ -587,53 +719,49 @@ function renderHistory(){
     const fText = $("#filterText");
     const fSort = $("#filterSort");
     
-    function reflow() {
-        const logs = store.getLogs().slice();
-        const dateVal = fDate.value;
-        const textVal = fText.value.toLowerCase().trim();
-        
-        let list = logs.filter(l => (!dateVal || l.date === dateVal) && (!textVal || l.exercise.toLowerCase().includes(textVal)));
-        if (fSort.value === "oldest") list.sort((a,b) => a.createdAt - b.createdAt);
-        else if (fSort.value === "volume") list.sort((a,b) => (b.sets*b.reps*b.weight) - (a.sets*a.reps*a.weight));
-        else list.sort((a,b) => b.createdAt - a.createdAt);
-        
-        tbody.innerHTML = "";
-        list.forEach(l => {
-            const tr = document.createElement("tr");
-            const vol = l.sets * l.reps * l.weight;
-            tr.innerHTML = `
-                <td>${l.date}</td>
-                <td>${escapeHTML(l.exercise)}</td>
-                <td>${l.sets}</td>
-                <td>${l.reps}</td>
-                <td>${formatUnits(l.weight)}</td>
-                <td>${vol}</td>
-                <td>${escapeHTML(l.notes || "")}</td>
-                <td><button class="btn btn-outline" data-del="${l.id}">Delete</button></td>`;
-            tbody.appendChild(tr);
-        });
-        
-        tbody.querySelectorAll("[data-del]").forEach(btn => {
-            btn.addEventListener("click", () => {
-                const id = btn.getAttribute("data-del");
-                const remaining = store.getLogs().filter(x => x.id !== id);
-                store.setLogs(remaining);
-                reflow();
-            });
-        });
-    }
-    [fDate, fText, fSort].forEach(i => i.addEventListener("input", reflow));
-    reflow();
+    async function reflow() {
+        const logs = await db.listLogs({
+          onDate: fDate.value || null,
+          text: fText.value.trim(),
+          sort: fSort.value
+  });
+
+  tbody.innerHTML = "";
+  logs.forEach(l => {
+    const vol = l.sets * l.reps * l.weight;
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${l.date}</td>
+      <td>${escapeHTML(l.exercise_name)}</td>
+      <td>${l.sets}</td>
+      <td>${l.reps}</td>
+      <td>${formatUnits(l.weight)}</td>
+      <td>${vol}</td>
+      <td>${escapeHTML(l.notes || "")}</td>
+      <td><button class="btn btn-outline" data-del="${l.id}">Delete</button></td>`;
+    tbody.appendChild(tr);
+  });
+
+  tbody.querySelectorAll("[data-del]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      await db.deleteLog(btn.getAttribute("data-del"));
+      reflow();
+    });
+  });
+}
+[fDate, fText, fSort].forEach(i => i.addEventListener("input", reflow));
+reflow();
+
 }
 
-function renderProgress(){
-    if (!guard()) return;
+    async function renderProgress(){
+    if (!(await guard()) return;
     document.body.classList.remove("auth");
     mount("progress-template");
     $("#sidebar")?.classList.remove("open");
     
     const list = $("#progressList");
-    const logs = store.getLogs();
+    const logs = await db.getLogs();
     const byExercise = {};
     logs.forEach(l => {
         if (!byExercise[l.exercise]) byExercise[l.exercise] = { max: 0, sessions: 0, totalVal: 0 };
@@ -650,7 +778,7 @@ function renderProgress(){
 }
 
 function renderGeneratePlan(){
-    if (!guard()) return;
+    if (!(!await guard()) return;
     document.body.classList.remove("auth");
     mount("generate-plan-template");
     $("#sidebar")?.classList.remove("open");
@@ -668,82 +796,70 @@ function renderGeneratePlan(){
         $("#planWeek").textContent = `Week ${savedPlan.meta.week}`;
     }
 
-    function getSelectedEquip(){
-        return Array.from(equipRow.querySelectorAll('input:checked')).map(x => x.value);
+    async function getSelectedEquip(){
+        return Array.from($("equipRow").querySelectorAll('input:checked')).map(x => x.value);
     }
+   function weekOfISO(d=new Date()){
+    const monday = startOfWeek(d);
+    return monday.toISOString().slice(0,10);
+  }
 
-    function renderPlanOutput(planData){
-        const out = $("#planOutput");
-        out.innerHTML = '';
-        
-        planData.plan.forEach(day => {
-            const dayDiv = document.createElement('div');
-            dayDiv.className = 'day-plan';
-            
-            const h4 = document.createElement('h4');
-            h4.textContent = day.name;
-            dayDiv.appendChild(h4);
+ async function renderGeneratePlan(){
+  if (!(await guard())) return;
+  document.body.classList.remove("auth");
+  mount("generate-plan-template");
+  $("#sidebar")?.classList.remove("open");
 
-            const exGrid = document.createElement('div');
-            exGrid.className = 'exercise-grid';
-            
-            const makeExercise = (e, isMain) => {
-                const div = document.createElement('div');
-                div.className = 'exercise-item';
-                const sets = `${e.sets} × ${fmtRange(e.reps)} reps`;
-                div.innerHTML = `
-                    <strong>${e.name}</strong> ${isMain ? '<span class="badge">Main</span>' : '<span class="badge" style="background:var(--muted)">Accessory</span>'}
-                    <small>${sets} • Rest ${e.rest}s</small>
-                `;
-                return div;
-            };
+  // ... build equipment UI as you do now
 
-            day.main.forEach(m => exGrid.appendChild(makeExercise(m, true)));
-            day.accessories.forEach(a => exGrid.appendChild(makeExercise(a, false)));
-            
-            dayDiv.appendChild(exGrid);
+  async function getSelectedEquip(){
+    return Array.from($("#equipRow").querySelectorAll('input:checked')).map(x => x.value);
+  }
 
-            const noteP = document.createElement('p');
-            noteP.className = 'plan-note';
-            noteP.textContent = day.note;
-            dayDiv.appendChild(noteP);
+  function weekOfISO(d=new Date()){
+    const monday = startOfWeek(d);
+    return monday.toISOString().slice(0,10);
+  }
 
-            out.appendChild(dayDiv);
-        });
+  async function renderPlanOutput(planData){
+    // (your current DOM render logic)
+    // persist remotely:
+    await db.savePlan({ weekOfISO: weekOfISO(), meta: planData.meta, plan: planData.plan });
+    Notify.success("Workout Plan Generated!", "Your personalized plan is saved.");
+  }
 
-        store.setPlan(planData);
-        $("#planWeek").textContent = `Week ${planData.meta.week}`;
-        Notify.success("Workout Plan Generated!", "Your personalized plan is ready.");
+  on($("#generateBtn"), "click", async () => {
+    const meta = {
+      level: $("#planLevel").value,
+      days: $("#planDays").value,
+      goal: $("#planGoal").value,
+      equipment: await getSelectedEquip(),
+      adherence: $("#planAdherence").value,
+      rpe: Number($("#planRPE").value) || 7,
+      week: 1
+    };
+    if (meta.equipment.length === 0) {
+      Notify.info("No Equipment Selected", "Select at least one piece of equipment.");
+      return;
     }
+    const plan = generatePlan(meta);
+    await renderPlanOutput(plan);
+    $("#planWeek").textContent = `Week ${plan.meta.week}`;
+  });
 
-    const genBtn = $("#generateBtn");
-    on(genBtn, "click", () => {
-        const profile = {
-            level: $("#planLevel").value,
-            days: $("#planDays").value,
-            goal: $("#planGoal").value,
-            equipment: getSelectedEquip(),
-            adherence: $("#planAdherence").value,
-            rpe: Number($("#planRPE").value) || 7,
-            week: savedPlan ? savedPlan.meta.week : 1
-        };
-
-        if (profile.equipment.length === 0) {
-            Notify.info("No Equipment Selected", "Select at least one piece of equipment for better results.");
-            return;
-        }
-
-        const plan = generatePlan(profile);
-        renderPlanOutput(plan);
-    });
-
-    if (savedPlan) {
-        renderPlanOutput(savedPlan);
-    }
+  // Try to load existing plan for this week
+  const existing = await db.loadPlan(weekOfISO());
+  if (existing?.plan) {
+    // reconstruct meta for display if you want
+    $("#planWeek").textContent = `Week ${/* derive a number if you track it */ 1}`;
+    // render existing plan to DOM:
+    // reuse your existing render code, feeding { meta: ???, plan: existing.plan }
+  }
 }
 
-function renderSettings(){
-    if (!guard()) return;
+
+    async function renderSettings(){
+    if (!(await guard()) return;
     document.body.classList.remove("auth");
     mount("settings-template");
     $("#sidebar")?.classList.remove("open");
@@ -753,20 +869,18 @@ function renderSettings(){
     const saveBtn = $("#saveSettings");
     const clearBtn = $("#clearData");
     const msg = $("#settingsMsg");
-    const s = store.getSettings();
+    const s = await db.getSettings();
 
     if (s.units) unitsSel.value = s.units;
     if (s.weeklyGoal) weeklyGoal.value = s.weeklyGoal;
 
-    on(saveBtn, "click", () => {
-        store.setSettings({...store.getSettings(), units: unitsSel.value, weeklyGoal: +weeklyGoal.value || null });
+    on(saveBtn, "click", async () => {
+        await db.setSettings({...store.getSettings(), units: unitsSel.value, weeklyGoal: +weeklyGoal.value || 3 });
         msg.className = "alert success";
         msg.textContent = "Settings Saved.";
     });
 
-    on(clearBtn, "click", () => {
-        if (confirm("Delete All Logs and Settings?")){
-            store.clearData();
+    on(clearBtn, "click", async () => {
             msg.className = "alert";
             msg.textContent = "All Data Cleared."
         }
