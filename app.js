@@ -1,12 +1,3 @@
-
-/* =========================================================
-   NeuroFit – Merged Single-File App (Supabase + Fallback)
-   - Prefers Supabase + Postgres (auth, logs, plans, friends)
-   - Falls back to localStorage if supabase is unavailable
-   - Includes backend plan generator (Render) integration
-   - Works with existing HTML templates (ids used below)
-   ========================================================= */
-
 /* -----------------------------
    Workout plan engine (static)
 ----------------------------- */
