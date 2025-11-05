@@ -65,6 +65,37 @@ const BLUEPRINT = {
   legs:  { main:['squat/goblet/legpress','rdl/hipthrust/dl'], acc:['legext','legcurl','calf','coreplank'] }
 };
 
+/* -----------------------------
+   Backend fetch (Render API)
+----------------------------- */
+const BACKEND_URL = "https://neurofit-gx49.onrender.com/generate-plan";
+const MAP_LEVEL = { beginner: "Beginner", intermediate: "Intermediate", advanced: "Advanced" };
+const MAP_GOAL  = { strength: "Strength", hypertrophy: "Hypertrophy", endurance: "Endurance", recomp: "Recomp/General" };
+
+async function fetchPlanFromBackend(meta) {
+  const u = await db.user();
+  const payload = {
+    user_id: u?.id || null,
+    fitness_level: MAP_LEVEL[meta.level] || "Intermediate",
+    days_per_week: Number(meta.days) || 3,
+    primary_goal: MAP_GOAL[meta.goal] || "Recomp/General",
+    available_equipment: Array.isArray(meta.equipment) ? meta.equipment : [],
+    rpe_last_week: Number(meta.rpe) || 7,
+    completed_90_sets: meta.adherence === "yes",
+    save: true
+  };
+  const res = await fetch(BACKEND_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  if (!res.ok) {
+    const t = await res.text().catch(()=>res.statusText);
+    throw new Error(`Backend error ${res.status}: ${t}`);
+  }
+  return res.json();
+}
+
 const pick = arr => arr[Math.floor(Math.random()*arr.length)];
 const withinEquip = (ex, avail) => ex.equip.some(e => avail.has(e));
 const repRange = (base, delta) => [Math.max(3, base[0]+delta), Math.max(4, base[1]+delta)];
@@ -700,6 +731,7 @@ async function renderGeneratePlan(){
     Notify.success("Workout Plan Generated!", "Your personalized plan is saved.");
   }
 
+  // ✅ backend-first generation with graceful fallback
   on($("#generateBtn"), "click", async () => {
     const meta = {
       level: $("#planLevel").value,
@@ -714,8 +746,38 @@ async function renderGeneratePlan(){
       Notify.info("No Equipment Selected", "Select at least one piece of equipment.");
       return;
     }
-    const plan = generatePlan(meta);
-    await renderPlanOutput(plan);
+
+    try {
+      const api = await fetchPlanFromBackend(meta);
+      const planData = {
+        meta: { ...meta },
+        plan: api.plan.map((d, i) => ({
+          name: `Day ${i + 1} – ${String(d.split).toUpperCase()}`,
+          focus: String(d.split || "").toLowerCase(),
+          // convert backend single reps -> [min,max] to fit your renderer
+          main: d.workouts.slice(0, 3).map(w => ({
+            id: w.exercise.toLowerCase().replace(/\s+/g, ''),
+            name: w.exercise,
+            sets: w.sets,
+            reps: [w.reps, w.reps],
+            rest: w.rest_sec ?? 90
+          })),
+          accessories: d.workouts.slice(3).map(w => ({
+            id: w.exercise.toLowerCase().replace(/\s+/g, ''),
+            name: w.exercise,
+            sets: w.sets,
+            reps: [w.reps, w.reps],
+            rest: w.rest_sec ?? 75
+          })),
+          note: "Leave 1–2 RIR. Adjust load based on RPE."
+        }))
+      };
+      await renderPlanOutput(planData);
+    } catch (e) {
+      console.warn("Backend unavailable, using local generator:", e.message);
+      const localPlan = generatePlan(meta);
+      await renderPlanOutput(localPlan);
+    }
   });
 
   // try to load this week's existing plan
