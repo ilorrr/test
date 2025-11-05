@@ -1,3 +1,8 @@
+/* =========================================================
+   NeuroFit – Single-file client app (Supabase + SPA)
+   Assumes window.supabase is already created in index.html
+   ========================================================= */
+
 /* -----------------------------
    Workout plan engine (static)
 ----------------------------- */
@@ -61,12 +66,11 @@ const BLUEPRINT = {
 };
 
 /* -----------------------------
-   Backend plan generator (Render API)
+   Backend fetch (Render API)
 ----------------------------- */
 const BACKEND_URL = "https://neurofit-gx49.onrender.com/generate-plan";
 const MAP_LEVEL = { beginner: "Beginner", intermediate: "Intermediate", advanced: "Advanced" };
 const MAP_GOAL  = { strength: "Strength", hypertrophy: "Hypertrophy", endurance: "Endurance", recomp: "Recomp/General" };
-
 
 async function fetchPlanFromBackend(meta) {
   const u = await db.user();
@@ -92,9 +96,6 @@ async function fetchPlanFromBackend(meta) {
   return res.json();
 }
 
-/* -----------------------------
-   Helpers
------------------------------ */
 const pick = arr => arr[Math.floor(Math.random()*arr.length)];
 const withinEquip = (ex, avail) => ex.equip.some(e => avail.has(e));
 const repRange = (base, delta) => [Math.max(3, base[0]+delta), Math.max(4, base[1]+delta)];
@@ -178,7 +179,7 @@ function validateLogin({ email, password }){
   return { ok: Object.keys(errors).length === 0, errors };
 }
 function escapeHTML(str){
-  return String(str).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]);
+  return String(str).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
 }
 function startOfWeek(d=new Date()){
   const x = new Date(d);
@@ -188,38 +189,11 @@ function startOfWeek(d=new Date()){
 }
 function weekOfISO(d=new Date()){ return startOfWeek(d).toISOString().slice(0,10); }
 
-/* =========================================================
-   DATA ACCESS LAYER – Supabase first, localStorage fallback
-   - Public API: db.session, db.user, db.register, db.login, db.logout
-                  db.getSettings, db.setSettings
-                  db.addLog, db.deleteLog, db.listLogs
-                  db.weekStats, db.progress
-                  db.savePlan, db.loadPlan
-                  db.friendsFeed, db.pushActivity
-   ========================================================= */
-const hasSupabase = typeof window !== 'undefined' && !!window.supabase;
-
-const store = {
-  USERS_KEY: "users",
-  CURRENT_USER_KEY: "currentUser",
-  LOGS_KEY: "neurofit.logs",
-  SETTINGS_KEY: "neurofit.settings",
-  PLAN_KEY: "neurofit.workoutPlan",
-  getUsers(){ return JSON.parse(localStorage.getItem(this.USERS_KEY) || "{}"); },
-  setUsers(u){ localStorage.setItem(this.USERS_KEY, JSON.stringify(u)); },
-  getCurrentUser(){ const r = localStorage.getItem(this.CURRENT_USER_KEY); return r ? JSON.parse(r) : null; },
-  setCurrentUser(u){ localStorage.setItem(this.CURRENT_USER_KEY, JSON.stringify(u)); },
-  clearCurrentUser(){ localStorage.removeItem(this.CURRENT_USER_KEY); },
-  getLogs(){ return JSON.parse(localStorage.getItem(this.LOGS_KEY) || "[]"); },
-  setLogs(arr){ localStorage.setItem(this.LOGS_KEY, JSON.stringify(arr)); },
-  getSettings(){ return JSON.parse(localStorage.getItem(this.SETTINGS_KEY) || "{}"); },
-  setSettings(obj){ localStorage.setItem(this.SETTINGS_KEY, JSON.stringify(obj)); },
-  getPlan(){ return JSON.parse(localStorage.getItem(this.PLAN_KEY) || "null"); },
-  setPlan(obj){ localStorage.setItem(this.PLAN_KEY, JSON.stringify(obj)); }
-};
-
-const db = hasSupabase ? ({
-  // ---------- AUTH (Supabase) ----------
+/* -----------------------------
+   Supabase data access layer
+----------------------------- */
+const db = {
+  // AUTH
   async session(){ return (await supabase.auth.getSession()).data.session || null; },
   async user(){ return (await supabase.auth.getUser()).data.user || null; },
   async register({ username, email, password }){
@@ -237,7 +211,7 @@ const db = hasSupabase ? ({
   },
   async logout(){ await supabase.auth.signOut(); },
 
-  // ---------- SETTINGS ----------
+  // SETTINGS
   async getSettings(){
     const u = await this.user(); if (!u) return { units:'lbs', weeklyGoal:3 };
     const { data } = await supabase.from('profiles').select('units, weekly_goal').eq('id', u.id).single();
@@ -249,7 +223,7 @@ const db = hasSupabase ? ({
     if (error) throw error;
   },
 
-  // ---------- LOGS ----------
+  // LOGS
   async addLog({ date, exercise, sets, reps, weight, notes, visibility='private' }){
     const u = await this.user(); if (!u) throw new Error('Not authed');
     const payload = { user_id: u.id, date, exercise_name: exercise, sets, reps, weight, notes, visibility };
@@ -276,7 +250,7 @@ const db = hasSupabase ? ({
     return data;
   },
 
-  // ---------- DASHBOARD ----------
+  // DASHBOARD
   async weekStats({ startISO, endISO }){
     const { data, error } = await supabase.from('workout_logs')
       .select('date,sets,reps,weight')
@@ -287,7 +261,7 @@ const db = hasSupabase ? ({
     return { workouts: days.size, volume };
   },
 
-  // ---------- PROGRESS (view / materialized view optional) ----------
+  // PROGRESS (optional view)
   async progress(){
     const { data, error } = await supabase
       .from('exercise_stats')
@@ -297,7 +271,7 @@ const db = hasSupabase ? ({
     return data;
   },
 
-  // ---------- PLANS ----------
+  // PLANS
   async savePlan({ weekOfISO, meta, plan }){
     const u = await this.user(); if (!u) throw new Error('Not authed');
     const { error } = await supabase.from('weekly_plans').upsert({
@@ -317,7 +291,7 @@ const db = hasSupabase ? ({
     return data;
   },
 
-  // ---------- SOCIAL / ACTIVITY ----------
+  // SOCIAL (min)
   async friendsFeed({ limit=5, offset=0 } = {}){
     const { data, error } = await supabase
       .from('friends_activity')
@@ -327,97 +301,13 @@ const db = hasSupabase ? ({
     if (error) return [];
     return data;
   },
+
+  // ACTIVITY
   async pushActivity(message){
     const u = await this.user(); if (!u) return;
     await supabase.from('activity_feed').insert({ user_id: u.id, message });
   }
-}) : ({
-  // ---------- AUTH (local fallback) ----------
-  async session(){ return store.getCurrentUser() ? { user: store.getCurrentUser() } : null; },
-  async user(){ return store.getCurrentUser(); },
-  async register({ username, email, password }){
-    const users = store.getUsers();
-    if (users[email]) throw new Error('User already exists');
-    users[email] = { username, password };
-    store.setUsers(users);
-    return { email, user_metadata:{ username } };
-  },
-  async login({ email, password }){
-    const users = store.getUsers();
-    const u = users[email];
-    if (!u || u.password !== password) throw new Error('Invalid email or password');
-    store.setCurrentUser({ id: email, email, user_metadata:{ username: u.username } });
-    return { email, user_metadata:{ username: u.username } };
-  },
-  async logout(){ store.clearCurrentUser(); },
-
-  // ---------- SETTINGS ----------
-  async getSettings(){
-    const s = store.getSettings();
-    return { units: s.units || 'lbs', weeklyGoal: s.weeklyGoal ?? 3 };
-  },
-  async setSettings({ units, weeklyGoal }){
-    const s = store.getSettings();
-    store.setSettings({ ...s, units, weeklyGoal });
-  },
-
-  // ---------- LOGS ----------
-  async addLog({ date, exercise, sets, reps, weight, notes, visibility='private' }){
-    const logs = store.getLogs();
-    logs.unshift({ id: crypto.randomUUID(), date, exercise_name: exercise, sets, reps, weight, notes, visibility, created_at: Date.now() });
-    store.setLogs(logs);
-  },
-  async deleteLog(id){
-    const logs = store.getLogs().filter(l => l.id !== id);
-    store.setLogs(logs);
-  },
-  async listLogs({ onDate, text, sort='newest' } = {}){
-    let list = store.getLogs().slice();
-    if (onDate) list = list.filter(l => l.date === onDate);
-    if (text)   list = list.filter(l => (l.exercise_name||'').toLowerCase().includes(String(text).toLowerCase()));
-    if (sort==='oldest') list.sort((a,b)=> (a.date > b.date?1:-1));
-    if (sort==='volume') list.sort((a,b)=> ((b.sets*b.reps*b.weight) - (a.sets*a.reps*a.weight)));
-    return list;
-  },
-
-  // ---------- DASHBOARD ----------
-  async weekStats({ startISO, endISO }){
-    const logs = store.getLogs();
-    const inRange = logs.filter(l => (l.date >= startISO && l.date <= endISO));
-    const days = new Set(inRange.map(r => r.date));
-    let volume = 0; inRange.forEach(r => { volume += (r.sets||0)*(r.reps||0)*(r.weight||0); });
-    return { workouts: days.size, volume };
-  },
-
-  // ---------- PROGRESS (derived) ----------
-  async progress(){
-    const logs = store.getLogs();
-    const by = {};
-    logs.forEach(l => {
-      if (!by[l.exercise_name]) by[l.exercise_name] = { max:0, total:0, last:null };
-      by[l.exercise_name].max = Math.max(by[l.exercise_name].max, l.weight||0);
-      by[l.exercise_name].total += (l.sets||0)*(l.reps||0)*(l.weight||0);
-      by[l.exercise_name].last = l.date;
-    });
-    return Object.entries(by).map(([exercise_name, v]) => ({
-      exercise_name, max_weight:v.max, total_volume:v.total, last_date:v.last
-    }));
-  },
-
-  // ---------- PLANS ----------
-  async savePlan({ weekOfISO, meta, plan }){
-    const obj = { week_of: weekOfISO, meta, plan };
-    store.setPlan(obj);
-  },
-  async loadPlan(weekOfISO){
-    const p = store.getPlan();
-    return (p && p.week_of === weekOfISO) ? p : null;
-  },
-
-  // ---------- SOCIAL / ACTIVITY ----------
-  async friendsFeed(){ return []; },
-  async pushActivity(){ /* no-op in fallback */ }
-});
+};
 
 /* -----------------------------
    Auth helpers & router
@@ -447,13 +337,10 @@ async function updateChrome(){
   const authed = !!(await db.session());
   const logoutBtn = $("#logoutBtn");
   const settingsBtn = $("#settingsBtn");
-  if (logoutBtn && settingsBtn){
-    if (authed){ logoutBtn.classList.remove("hidden"); settingsBtn.classList.remove("hidden"); }
-    else { logoutBtn.classList.add("hidden"); settingsBtn.classList.add("hidden"); }
-  }
-  const shell = $("#shell"); const sidebar = $("#sidebar");
-  if (shell) shell.style.display = authed ? "grid" : "block";
-  if (sidebar) sidebar.style.display = authed ? "block" : "none";
+  if (authed){ logoutBtn.classList.remove("hidden"); settingsBtn.classList.remove("hidden"); }
+  else { logoutBtn.classList.add("hidden"); settingsBtn.classList.add("hidden"); }
+  $("#shell").style.display = authed ? "grid" : "block";
+  $("#sidebar").style.display = authed ? "block" : "none";
 }
 
 async function render(){
@@ -499,7 +386,7 @@ function renderLogin(){
       await db.login(payload);
       msg.className = "alert success";
       msg.textContent = "Login successful. Redirecting…";
-      if (typeof Notify !== 'undefined') Notify.success("Welcome back!", "Let's make progress today.");
+      Notify.success("Welcome back!", "Let's make progress today.");
       document.body.classList.remove("auth");
       setTimeout(() => (location.hash = "#/home"), 200);
     } catch (err){
@@ -518,12 +405,12 @@ function renderRegister(){
   const msg  = $("#regMsg");
   const pw   = $("#regPassword");
   const meter = $("#pwMeter");
-  const meterFill = meter?.querySelector?.(".meter-fill");
+  const meterFill = meter.querySelector(".meter-fill");
 
   on(pw, "input", () => {
     const s = scorePassword(pw.value);
-    if (meter) meter.className = `meter strength-${Math.max(1,s)}`;
-    if (meterFill) meterFill.style.width = `${(s/4)*100}%`;
+    meter.className = `meter strength-${Math.max(1,s)}`;
+    meterFill.style.width = `${(s/4)*100}%`;
   });
 
   on(form, "submit", async (e) => {
@@ -538,9 +425,7 @@ function renderRegister(){
     try {
       await db.register(payload);
       msg.className = "alert success";
-      msg.textContent = hasSupabase
-        ? "Registration successful. Check your email to confirm, then log in."
-        : "Registration successful. You can log in now.";
+      msg.textContent = "Registration successful. Check your email to confirm, then log in.";
       setTimeout(() => (location.hash = "#/login"), 800);
     } catch (err){
       msg.className = "alert error";
@@ -554,7 +439,7 @@ async function renderHome(){
   document.body.classList.remove("auth");
 
   const u = await db.user();
-  const username = u?.user_metadata?.username || u?.username || "Athlete";
+  const username = u?.user_metadata?.username || "Athlete";
   mount("home-template", { username });
 
   const weekStart = startOfWeek(new Date());
@@ -565,24 +450,20 @@ async function renderHome(){
   try {
     const stats = await db.weekStats({ startISO, endISO });
     $("#statWorkouts").textContent = String(stats.workouts);
-    $("#statVolume").textContent   = (stats.volume||0).toLocaleString();
+    $("#statVolume").textContent   = stats.volume.toLocaleString();
   } catch {
     $("#statWorkouts").textContent = "0";
     $("#statVolume").textContent   = "0";
   }
 
   const list = $("#activityList");
-  if (list){
-    list.innerHTML = "";
-    const feed = await db.friendsFeed({ limit:5 }).catch(()=>[]);
-    feed.forEach(l => {
-      const li = document.createElement("li");
-      // Keep generic to support both backends
-      const msg = l.message || `${l.date||''} • ${l.exercise_name||''} • ${l.sets||''}x${l.reps||''} @ ${l.weight||''}`;
-      li.textContent = msg.trim();
-      list.appendChild(li);
-    });
-  }
+  list.innerHTML = "";
+  const feed = await db.friendsFeed({ limit:5 }).catch(()=>[]);
+  feed.forEach(l => {
+    const li = document.createElement("li");
+    li.textContent = `${l.date} • ${l.exercise_name} • ${l.sets}x${l.reps} @ ${l.weight}`;
+    list.appendChild(li);
+  });
 }
 
 async function renderWorkoutLog(){
@@ -608,15 +489,15 @@ async function renderWorkoutLog(){
       reps: +$("#woReps").value,
       weight: +$("#woWeight").value,
       notes: ($("#woNotes")?.value || "").trim(),
-      visibility: 'friends' // simple default; wire to a select if present
+      visibility: 'friends' // change to a select in UI if you like
     };
     if (!payload.exercise || !payload.sets || !payload.reps){
       err.textContent = "Please fill sets, reps, and exercise."; return;
     }
     try {
       await db.addLog(payload);
-      const details = `${payload.exercise}: ${payload.sets}×${payload.reps} @ ${payload.weight||0}`;
-      if (typeof Notify !== 'undefined') Notify.success(Notify?.praise?.() || "Saved", details, 4500);
+      const details = `${payload.exercise}: ${payload.sets}×${payload.reps} @ ${payload.weight}`;
+      Notify.success(Notify.praise(), details, 4500);
       ok.textContent = "Workout saved!";
       form.reset();
       $("#woDate").value = today;
@@ -744,11 +625,11 @@ async function renderHistory(){
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${l.date}</td>
-        <td>${escapeHTML(l.exercise_name || l.exercise || "")}</td>
-        <td>${l.sets||''}</td>
-        <td>${l.reps||''}</td>
-        <td>${l.weight||''}</td>
-        <td>${vol||0}</td>
+        <td>${escapeHTML(l.exercise_name)}</td>
+        <td>${l.sets}</td>
+        <td>${l.reps}</td>
+        <td>${l.weight}</td>
+        <td>${vol}</td>
         <td>${escapeHTML(l.notes || "")}</td>
         <td><button class="btn btn-outline" data-del="${l.id}">Delete</button></td>`;
       tbody.appendChild(tr);
@@ -760,7 +641,7 @@ async function renderHistory(){
       });
     });
   }
-  [fDate, fText, fSort].forEach(el => el && el.addEventListener("input", reflow));
+  [fDate, fText, fSort].forEach(el => el.addEventListener("input", reflow));
   reflow();
 }
 
@@ -773,97 +654,236 @@ async function renderProgress(){
   const list = $("#progressList");
   let stats = await db.progress();
   if (!stats){
-    // fallback already handled inside db.progress for fallback mode
-    stats = [];
+    const logs = await db.listLogs();
+    const by = {};
+    logs.forEach(l => {
+      if (!by[l.exercise_name]) by[l.exercise_name] = { max:0, sessions:0, total:0 };
+      by[l.exercise_name].max = Math.max(by[l.exercise_name].max, l.weight||0);
+      by[l.exercise_name].sessions += 1;
+      by[l.exercise_name].total += (l.sets||0)*(l.reps||0)*(l.weight||0);
+    });
+    const entries = Object.entries(by);
+    list.innerHTML = entries.length
+      ? entries.map(([name,v]) => `<li><strong>${escapeHTML(name)}</strong> — max ${v.max}, sessions ${v.sessions}, volume ${v.total.toLocaleString()}</li>`).join("")
+      : `<li class="helper">Log some workouts to see progress.</li>`;
+  } else {
+    list.innerHTML = stats.length
+      ? stats.map(s=> `<li><strong>${escapeHTML(s.exercise_name)}</strong> — max ${s.max_weight}, volume ${Number(s.total_volume).toLocaleString()}, last ${s.last_date}</li>`).join("")
+      : `<li class="helper">Log some workouts to see progress.</li>`;
   }
-  list.innerHTML = stats.length
-    ? stats.map(s=> `<li><strong>${escapeHTML(s.exercise_name)}</strong> — max ${s.max_weight||0}, volume ${Number(s.total_volume||0).toLocaleString()}, last ${s.last_date||'-'}</li>`).join("")
-    : `<li class="helper">Log some workouts to see progress.</li>`;
-}
-
-async function renderSettings(){
-  if (!await guard()) return;
-  mount("settings-template");
-  const unitsSel = $("#unitsSel");
-  const goalInput = $("#weeklyGoal");
-  const saveBtn = $("#saveSettings");
-  const msg = $("#settingsMsg");
-
-  try{
-    const s = await db.getSettings();
-    if (unitsSel) unitsSel.value = s.units || 'lbs';
-    if (goalInput) goalInput.value = s.weeklyGoal ?? 3;
-  } catch {}
-
-  on(saveBtn, "click", async () => {
-    try{
-      await db.setSettings({ units: unitsSel.value, weeklyGoal: Number(goalInput.value)||3 });
-      msg.className = "alert success";
-      msg.textContent = "Settings saved.";
-    }catch(e){
-      msg.className = "alert error";
-      msg.textContent = e.message || "Failed to save settings.";
-    }
-  });
 }
 
 async function renderGeneratePlan(){
   if (!await guard()) return;
-  mount("generate-template");
-  const form = $("#genForm");
-  const out = $("#genOut");
-  const err = $("#genErr");
-  const saveBtn = $("#savePlanBtn");
-  const loadBtn = $("#loadPlanBtn");
+  document.body.classList.remove("auth");
+  mount("generate-plan-template");
+  $("#sidebar")?.classList.remove("open");
 
-  on(form, "submit", async (e) => {
-    e.preventDefault();
-    err.textContent = ""; out.textContent = "";
+  const equipRow = $("#equipRow");
+  EQUIPMENT.forEach(e => {
+    const label = document.createElement('label');
+    label.className = 'chip';
+    label.innerHTML = `<input type="checkbox" value="${e}"> ${e}`;
+    equipRow.appendChild(label);
+  });
+
+  function getSelectedEquip(){
+    return Array.from(equipRow.querySelectorAll('input:checked')).map(x => x.value);
+  }
+
+  async function renderPlanOutput(planData){
+    const out = $("#planOutput");
+    out.innerHTML = '';
+
+    planData.plan.forEach(day => {
+      const dayDiv = document.createElement('div');
+      dayDiv.className = 'day-plan';
+      const h4 = document.createElement('h4');
+      h4.textContent = day.name;
+      dayDiv.appendChild(h4);
+
+      const exGrid = document.createElement('div');
+      exGrid.className = 'exercise-grid';
+      const makeExercise = (e, isMain) => {
+        const div = document.createElement('div');
+        div.className = 'exercise-item';
+        const sets = `${e.sets} × ${fmtRange(e.reps)} reps`;
+        div.innerHTML = `
+          <strong>${e.name}</strong> ${isMain ? '<span class="badge">Main</span>' : '<span class="badge" style="background:var(--muted)">Accessory</span>'}
+          <small>${sets} • Rest ${e.rest}s</small>`;
+        return div;
+      };
+      day.main.forEach(m => exGrid.appendChild(makeExercise(m, true)));
+      day.accessories.forEach(a => exGrid.appendChild(makeExercise(a, false)));
+      dayDiv.appendChild(exGrid);
+
+      const noteP = document.createElement('p');
+      noteP.className = 'plan-note';
+      noteP.textContent = day.note;
+      dayDiv.appendChild(noteP);
+
+      out.appendChild(dayDiv);
+    });
+
+    $("#planWeek").textContent = `Week ${planData.meta.week}`;
+    // persist remotely
+    await db.savePlan({ weekOfISO: weekOfISO(), meta: planData.meta, plan: planData.plan });
+    Notify.success("Workout Plan Generated!", "Your personalized plan is saved.");
+  }
+
+  // ✅ backend-first generation with graceful fallback
+  on($("#generateBtn"), "click", async () => {
     const meta = {
-      level: $("#level").value,
-      days: +$("#days").value,
-      goal: $("#goal").value,
-      equipment: Array.from(document.querySelectorAll("input[name='equip']:checked")).map(x=>x.value),
-      adherence: $("#adherence").value,
-      rpe: +$("#rpe").value || 7,
-      week: +($("#week").value||1)
+      level: $("#planLevel").value,
+      days: $("#planDays").value,
+      goal: $("#planGoal").value,
+      equipment: getSelectedEquip(),
+      adherence: $("#planAdherence").value,
+      rpe: Number($("#planRPE").value) || 7,
+      week: 1
     };
+    if (meta.equipment.length === 0){
+      Notify.info("No Equipment Selected", "Select at least one piece of equipment.");
+      return;
+    }
+
     try {
-      // Prefer server generator; fallback to local
-      let planData;
-      try{
-        planData = await fetchPlanFromBackend(meta);
-      }catch{
-        planData = generatePlan(meta);
-      }
-      out.textContent = JSON.stringify(planData, null, 2);
-      saveBtn.disabled = false;
-    } catch (e){
-      err.textContent = e.message || "Failed to generate plan.";
+      const api = await fetchPlanFromBackend(meta);
+      const planData = {
+        meta: { ...meta },
+        plan: api.plan.map((d, i) => ({
+          name: `Day ${i + 1} – ${String(d.split).toUpperCase()}`,
+          focus: String(d.split || "").toLowerCase(),
+          // convert backend single reps -> [min,max] to fit your renderer
+          main: d.workouts.slice(0, 3).map(w => ({
+            id: w.exercise.toLowerCase().replace(/\s+/g, ''),
+            name: w.exercise,
+            sets: w.sets,
+            reps: [w.reps, w.reps],
+            rest: w.rest_sec ?? 90
+          })),
+          accessories: d.workouts.slice(3).map(w => ({
+            id: w.exercise.toLowerCase().replace(/\s+/g, ''),
+            name: w.exercise,
+            sets: w.sets,
+            reps: [w.reps, w.reps],
+            rest: w.rest_sec ?? 75
+          })),
+          note: "Leave 1–2 RIR. Adjust load based on RPE."
+        }))
+      };
+      await renderPlanOutput(planData);
+    } catch (e) {
+      console.warn("Backend unavailable, using local generator:", e.message);
+      const localPlan = generatePlan(meta);
+      await renderPlanOutput(localPlan);
     }
   });
+
+  // try to load this week's existing plan
+  const existing = await db.loadPlan(weekOfISO());
+  if (existing?.plan){
+    const meta = { level: existing.level, days: existing.days, goal: existing.goal, week: 1, adherence:'yes', rpe:7, equipment: existing.equipment||[] };
+    await renderPlanOutput({ meta, plan: existing.plan });
+  }
+}
+
+async function renderSettings(){
+  if (!await guard()) return;
+  document.body.classList.remove("auth");
+  mount("settings-template");
+  $("#sidebar")?.classList.remove("open");
+
+  const unitsSel = $("#unitsSelect");
+  const weeklyGoal = $("#weeklyGoal");
+  const saveBtn = $("#saveSettings");
+  const clearBtn = $("#clearData");
+  const msg = $("#settingsMsg");
+
+  const s = await db.getSettings();
+  if (s.units) unitsSel.value = s.units;
+  if (s.weeklyGoal) weeklyGoal.value = s.weeklyGoal;
 
   on(saveBtn, "click", async () => {
-    try{
-      const parsed = JSON.parse($("#genOut").textContent || "{}");
-      const key = weekOfISO(new Date());
-      await db.savePlan({ weekOfISO: key, meta: parsed.meta || {}, plan: parsed.plan || [] });
-      if (typeof Notify !== 'undefined') Notify.success("Saved", "Weekly plan saved.", 3000);
-    }catch(e){
-      alert(e.message || "Failed to save plan");
+    try {
+      await db.setSettings({ units: unitsSel.value, weeklyGoal: +weeklyGoal.value || 3 });
+      msg.className = "alert success";
+      msg.textContent = "Settings saved.";
+    } catch (e){
+      msg.className = "alert error";
+      msg.textContent = e.message || "Failed to save settings.";
     }
   });
 
-  on(loadBtn, "click", async () => {
-    try{
-      const key = weekOfISO(new Date());
-      const rec = await db.loadPlan(key);
-      out.textContent = rec ? JSON.stringify(rec, null, 2) : "No plan saved for this week.";
-    }catch(e){
-      alert(e.message || "Failed to load plan");
-    }
+  // Clear only local UI cache if you had one. (We do not delete Supabase data here.)
+  on(clearBtn, "click", async () => {
+    msg.className = "alert";
+    msg.textContent = "Local data cleared (no remote delete).";
   });
 }
 
-// Expose for console debugging if needed
-window.__neurofit = { db, generatePlan, fetchPlanFromBackend, hasSupabase };
+/* -----------------------------
+   Top-bar actions
+----------------------------- */
+on($("#menuToggle"), "click", () => {
+  const sb = $("#sidebar");
+  const open = sb.classList.toggle("open");
+  $("#menuToggle").setAttribute("aria-expanded", String(open));
+});
+
+on(document, "click", async (e) => {
+  if (e.target && e.target.id === "logoutBtn"){
+    await db.logout();
+    location.hash = "#/login";
+  }
+  if (e.target && e.target.id === "settingsBtn"){
+    location.hash = "#/settings";
+  }
+});
+
+/* -----------------------------
+   Toast Notifications
+----------------------------- */
+const Notify = (() => {
+  const containerId = "congrats";
+  const PRAISE = ["Nice Work!", "Let's Go!", "Consistency is Key.", "Keep It Up!!", "Small Steps Add Up."];
+  const icon = (t) => (t === "success" ? "✅" : t === "error" ? "⚠️" : "ℹ️");
+  function ensureContainer(){
+    let c = document.getElementById(containerId);
+    if (!c){
+      c = document.createElement("div");
+      c.id = containerId;
+      c.className = "congrats";
+      c.setAttribute("aria-live","polite");
+      c.setAttribute("aria-atomic","true");
+      document.body.appendChild(c);
+    }
+    return c;
+  }
+  function show({title, message="", type="info", duration=3500}){
+    const c = ensureContainer();
+    const el = document.createElement("div");
+    el.className = `congrat congrat-${type}`;
+    el.innerHTML = `
+      <div class="congrat-icon">${icon(type)}</div>
+      <div class="congrat-body">
+        <strong>${title}</strong>
+        ${message ? `<div class="congrat-msg">${message}</div>` : ""}
+      </div>
+      <button class="congrat-close" aria-label="Close">&times;</button>`;
+    c.appendChild(el);
+    requestAnimationFrame(() => el.classList.add("show"));
+    const remove = () => {
+      el.classList.remove("show");
+      el.addEventListener("transitionend", () => el.remove(), { once:true });
+    };
+    const t = setTimeout(remove, duration);
+    el.querySelector(".congrat-close").addEventListener("click", () => { clearTimeout(t); remove(); });
+  }
+  return {
+    show,
+    success: (t,m,d) => show({ title:t, message:m, type:"success", duration:d }),
+    info:    (t,m,d) => show({ title:t, message:m, type:"info",    duration:d }),
+    praise:  () => PRAISE[Math.floor(Math.random()*PRAISE.length)]
+  };
+})();
