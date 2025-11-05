@@ -137,9 +137,26 @@ def _profile_exists(user_id: str) -> bool:
         return False
 
 def insert_example_row(user_id: Optional[str], week_of: str, meta: Dict[str, Any], plan: List[DayBlock]) -> Optional[int]:
-    """
-    Insert one training example into plan_examples.
-    If the profile doesn't exist, insert with user_id = null to avoid FK errors.
-    """
     try:
-        uid_for_insert = user_id if (user_id and _profile_exists(
+        # verify the user exists in profiles; if not, set user_id to None to avoid FK error
+        uid_for_insert = user_id if (user_id and _profile_exists(user_id)) else None
+
+        payload = {
+            "user_id": uid_for_insert,
+            "week_of": week_of,
+            "level": meta.get("fitness_level"),
+            "days_per_week": meta.get("days_per_week"),
+            "primary_goal": meta.get("primary_goal"),
+            "equipment": meta.get("available_equipment", []),
+            "progression": 1 if meta.get("completed_90_sets") and (meta.get("rpe_last_week") or 7) <= 7 else 0,
+            "plan": [d.model_dump() for d in plan],
+            "source": "api_generate_plan",
+        }
+        res = sb.table("plan_examples").insert(payload).execute()
+        if res.data and len(res.data) > 0:
+            return int(res.data[0]["id"])
+        return None
+    except Exception as e:
+        print("insert_example_row failed:", repr(e))
+        return None
+
