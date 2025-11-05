@@ -1,175 +1,215 @@
-"""
-NeuroFit Backend API (FastAPI + Supabase)
-----------------------------------------
-Purpose:
-- Generates personalized workout plans.
-- Optionally saves the plan in Supabase.
-- Connects directly to Supabase for weekly_plans table.
-"""
-
+# app.py
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-from typing import List, Optional, Literal
-from datetime import date, timedelta, datetime
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
+from typing import List, Optional, Dict, Any
 import os
+import random
 from supabase import create_client, Client
 
 # -----------------------------
-#  Supabase Setup
-# -----------------------------
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE") or os.getenv("SUPABASE_ANON_KEY")
-supabase: Optional[Client] = None
-if SUPABASE_URL and SUPABASE_KEY:
-    supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-
-# -----------------------------
-#  FastAPI Init
+# FastAPI + CORS
 # -----------------------------
 app = FastAPI(title="NeuroFit Backend", version="1.0.0")
 
-# -----------------------------
-#  Data Models
-# -----------------------------
-FitnessLevel = Literal["Beginner", "Intermediate", "Advanced"]
-PrimaryGoal = Literal["Recomp/General", "Strength", "Hypertrophy", "Endurance"]
+# ⚠️ For production, replace "*" with your exact frontends
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[o.strip() for o in ALLOWED_ORIGINS] if ALLOWED_ORIGINS else ["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
+# -----------------------------
+# Supabase client (service role)
+# -----------------------------
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_SERVICE_ROLE = os.environ.get("SUPABASE_SERVICE_ROLE")
+
+if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE:
+    raise RuntimeError("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE env vars.")
+
+sb: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE)
+
+# -----------------------------
+# Schemas
+# -----------------------------
 class PlanRequest(BaseModel):
     user_id: Optional[str] = None
-    fitness_level: FitnessLevel
-    days_per_week: int
-    primary_goal: PrimaryGoal
-    available_equipment: List[str]
+    fitness_level: str = Field(..., description="Beginner | Intermediate | Advanced")
+    days_per_week: int = Field(..., ge=2, le=6)
+    primary_goal: str = Field(..., description="Strength | Hypertrophy | Endurance | Recomp/General")
+    available_equipment: List[str] = Field(default_factory=list)
     rpe_last_week: Optional[int] = 7
     completed_90_sets: Optional[bool] = True
-    save: Optional[bool] = False
+    save: Optional[bool] = True
+
+class WorkoutItem(BaseModel):
+    exercise: str
+    sets: int
+    reps: int
+    rest_sec: int
+
+class DayBlock(BaseModel):
+    day: int
+    split: str
+    workouts: List[WorkoutItem]
+
+class PlanResponse(BaseModel):
+    example_id: Optional[int] = None
+    plan: List[DayBlock]
+
+class Feedback(BaseModel):
+    example_id: int
+    user_id: Optional[str] = None
+    rating: Optional[int] = Field(default=None, ge=1, le=5)
+    completed_pct: Optional[int] = Field(default=None, ge=0, le=100)
+    notes: Optional[str] = None
 
 # -----------------------------
-#  Exercise Database
+# Tiny rules engine (demo)
+# Produces output that your frontend already expects:
+#   [{ day, split, workouts: [{exercise, sets, reps, rest_sec}, ...] }]
 # -----------------------------
-SPLITS = {
-    2: ["Full Body A", "Full Body B"],
-    3: ["Push", "Pull", "Legs"],
-    4: ["Upper", "Lower", "Push", "Pull"],
-    5: ["Push", "Pull", "Legs", "Upper", "Lower"],
-    6: ["Push", "Pull", "Legs", "Upper", "Lower", "Full"],
+SPLITS_BY_DAYS = {
+    2: ["full", "full"],
+    3: ["push", "pull", "legs"],
+    4: ["upper", "lower", "upper", "lower"],
+    5: ["upper", "lower", "push", "pull", "full"],
+    6: ["push", "pull", "legs", "upper", "lower", "full"],
 }
 
-EXERCISE_LIBRARY = {
-    "barbell": ["Back Squat", "Deadlift", "Bench Press", "Overhead Press", "Barbell Row"],
-    "dumbbell": ["DB Bench Press", "DB Row", "DB Shoulder Press", "DB Curl", "DB Lunge"],
-    "machine": ["Leg Press", "Cable Row", "Chest Press Machine", "Lat Pulldown", "Pec Deck"],
-    "bodyweight": ["Push-ups", "Pull-ups", "Plank", "Dips", "Air Squats"],
-    "kettlebell": ["KB Swing", "Goblet Squat", "KB Clean", "KB Press"],
+CANDIDATES: Dict[str, List[str]] = {
+    "push": ["Bench Press", "DB Bench", "Overhead Press", "Incline Press", "Dips"],
+    "pull": ["Barbell Row", "Lat Pulldown", "Pull-up", "Seated Row", "DB Row"],
+    "legs": ["Back Squat", "Front Squat", "Leg Press", "RDL", "Hip Thrust"],
+    "upper": ["Bench Press", "Row", "OHP", "Lat Pulldown", "Incline DB"],
+    "lower": ["Back Squat", "RDL", "Leg Press", "Ham Curl", "Calf Raise"],
+    "full": ["Deadlift", "Bench Press", "Row", "Squat", "Pull-up"],
 }
 
-GOAL_SCHEMES = {
-    "Strength": {"reps": 5, "sets": 5},
-    "Hypertrophy": {"reps": 8, "sets": 3},
-    "Recomp/General": {"reps": 10, "sets": 3},
-    "Endurance": {"reps": 15, "sets": 2},
+LEVEL_PARAMS = {
+    "beginner":    dict(sets_main=3, reps_main=10, rest_main=120),
+    "intermediate":dict(sets_main=4, reps_main=8,  rest_main=150),
+    "advanced":    dict(sets_main=5, reps_main=6,  rest_main=180),
 }
 
-LEVEL_ADJUST = {
-    "Beginner": {"multiplier": 0.9, "exercise_cap": 5},
-    "Intermediate": {"multiplier": 1.0, "exercise_cap": 6},
-    "Advanced": {"multiplier": 1.2, "exercise_cap": 7},
+GOAL_TWEAK = {
+    "strength":    dict(rep_delta=-2, rest_factor=1.2),
+    "hypertrophy": dict(rep_delta=+2, rest_factor=0.9),
+    "endurance":   dict(rep_delta=+4, rest_factor=0.8),
+    "recomp/general": dict(rep_delta=0, rest_factor=1.0),
+    "recomp":         dict(rep_delta=0, rest_factor=1.0),
 }
 
-# -----------------------------
-#  Helper Functions
-# -----------------------------
-def start_of_week(today: Optional[date] = None):
-    today = today or date.today()
-    monday = today - timedelta(days=today.weekday())
-    return monday
+def normalize(s: str) -> str:
+    return s.strip().lower()
 
-def choose_intensity_factor(rpe: int, completed: bool):
-    if rpe <= 7 and completed:
-        return 1.05
-    elif rpe >= 9 or not completed:
-        return 0.90
-    else:
-        return 1.00
+def build_plan(req: PlanRequest) -> List[DayBlock]:
+    lv = normalize(req.fitness_level)
+    goal = normalize(req.primary_goal)
+    params = LEVEL_PARAMS.get(lv, LEVEL_PARAMS["intermediate"])
+    tweak = GOAL_TWEAK.get(goal, GOAL_TWEAK["recomp/general"])
 
-def flatten_equipment(equipment: List[str]):
-    pool = []
-    for eq in equipment:
-        pool += EXERCISE_LIBRARY.get(eq, [])
-    return list(dict.fromkeys(pool)) or ["Push-ups", "Squats", "Plank"]
+    sets = params["sets_main"]
+    reps = max(4, params["reps_main"] + tweak["rep_delta"])
+    rest = max(45, int(params["rest_main"] * tweak["rest_factor"]))
 
-# -----------------------------
-#  Core Logic
-# -----------------------------
-def generate_plan(level: FitnessLevel, days: int, goal: PrimaryGoal, equipment: List[str], rpe: int, completed: bool):
-    intensity = choose_intensity_factor(rpe, completed)
-    pool = flatten_equipment(equipment)
-    split_list = SPLITS.get(days, ["Full Body"])
-    scheme = GOAL_SCHEMES[goal]
-    adjust = LEVEL_ADJUST[level]
+    days = max(2, min(6, req.days_per_week))
+    split = SPLITS_BY_DAYS.get(days, SPLITS_BY_DAYS[3])
 
-    plan = []
-    for i, split in enumerate(split_list):
-        chosen = pool[i * 2 : i * 2 + adjust["exercise_cap"]]
-        day_plan = {
-            "day": i + 1,
-            "split": split,
-            "workouts": [
-                {
-                    "exercise": ex,
-                    "sets": int(scheme["sets"] * adjust["multiplier"]),
-                    "reps": scheme["reps"],
-                    "intensity_%": round(100 * intensity),
-                }
-                for ex in chosen
-            ],
-        }
-        plan.append(day_plan)
+    plan: List[DayBlock] = []
+    for i, block in enumerate(split, start=1):
+        pool = CANDIDATES.get(block, CANDIDATES["full"])
+        # pick 3-5 exercises depending on goal
+        k = 4 if "hypertrophy" in goal else 3
+        picks = random.sample(pool, k=min(k, len(pool)))
+        workouts = [WorkoutItem(exercise=p, sets=sets, reps=reps, rest_sec=rest) for p in picks]
+        plan.append(DayBlock(day=i, split=block, workouts=workouts))
     return plan
 
 # -----------------------------
-#  API Routes
+# DB helpers
 # -----------------------------
-@app.get("/")
+def insert_example_row(user_id: Optional[str], week_of: str, meta: Dict[str, Any], plan: List[DayBlock]) -> Optional[int]:
+    """Insert one training example into plan_examples. Returns new id or None."""
+    try:
+        payload = {
+            "user_id": user_id,
+            "week_of": week_of,                           # frontend can pass current monday; we also accept any ISO date
+            "level": meta.get("fitness_level"),
+            "days_per_week": meta.get("days_per_week"),
+            "primary_goal": meta.get("primary_goal"),
+            "equipment": meta.get("available_equipment", []),
+            "progression": 1 if meta.get("completed_90_sets") and (meta.get("rpe_last_week") or 7) <= 7 else 0,
+            "plan": [d.model_dump() for d in plan],       # store exactly what we served
+            "source": "api_generate_plan",
+        }
+        res = sb.table("plan_examples").insert(payload).execute()
+        if res.data and len(res.data) > 0:
+            return int(res.data[0]["id"])
+        return None
+    except Exception as e:
+        print("insert_example_row failed:", repr(e))
+        return None
+
+def insert_feedback_row(fb: Feedback) -> int:
+    try:
+        res = sb.table("plan_feedback").insert({
+            "example_id": fb.example_id,
+            "user_id": fb.user_id,
+            "rating": fb.rating,
+            "completed_pct": fb.completed_pct,
+            "notes": fb.notes
+        }).execute()
+        if res.data and len(res.data) > 0:
+            return int(res.data[0]["id"])
+        raise RuntimeError("Insert returned no rows")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Feedback insert failed: {e}")
+
+# -----------------------------
+# Routes
+# -----------------------------
+@app.get("/", tags=["health"])
 def root():
     return {"status": "✅ NeuroFit backend is running."}
 
-@app.post("/generate-plan")
-def create_plan(req: PlanRequest):
+@app.post("/generate-plan", response_model=PlanResponse, tags=["plans"])
+def generate_plan(req: PlanRequest):
+    """
+    Build a weekly plan based on inputs.
+    Also logs a dataset row into plan_examples (if save=True).
+    Returns plan + example_id for later feedback.
+    """
     try:
-        plan = generate_plan(
-            req.fitness_level, req.days_per_week, req.primary_goal,
-            req.available_equipment, req.rpe_last_week, req.completed_90_sets
-        )
-        week_of = start_of_week().isoformat()
+        plan = build_plan(req)
 
-        result = {
-            "week_of": week_of,
-            "fitness_level": req.fitness_level,
-            "days_per_week": req.days_per_week,
-            "goal": req.primary_goal,
-            "equipment": req.available_equipment,
-            "plan": plan
-        }
-
-        # Optionally save to Supabase
-        if req.save and supabase and req.user_id:
-            data = {
-                "user_id": req.user_id,
-                "week_of": week_of,
-                "level": req.fitness_level,
-                "days": req.days_per_week,
-                "goal": req.primary_goal,
-                "equipment": req.available_equipment,
-                "plan": plan,
-                "created_at": datetime.utcnow().isoformat(),
-            }
-            supabase.table("weekly_plans").upsert(data, on_conflict="user_id,week_of").execute()
-            result["saved"] = True
-        else:
-            result["saved"] = False
-
-        return result
-
+        example_id = None
+        if req.save:
+            # Use the app's notion of current week; frontend can pass Monday ISO if you prefer
+            # Here we derive an ISO date string (today) that Supabase accepts for week_of
+            from datetime import date
+            week_of = date.today().isoformat()
+            example_id = insert_example_row(
+                user_id=req.user_id,
+                week_of=week_of,
+                meta=req.model_dump(),
+                plan=plan
+            )
+        return PlanResponse(example_id=example_id, plan=plan)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Generate plan failed: {e}")
+
+@app.post("/examples/feedback", tags=["feedback"])
+def add_feedback(f: Feedback):
+    """
+    Attach labels to a plan example:
+      - rating: 1..5
+      - completed_pct: 0..100
+      - notes: free text
+    """
+    fb_id = insert_feedback_row(f)
+    return {"ok": True, "feedback_id": fb_id}
